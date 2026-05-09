@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff00C9FF</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff00C9FF</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Little Tip Toe Mountain</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.90338015030308,44.10229948543707,0.0 -68.90327919145527,44.10250016429259,0.0 -68.90315139759173,44.102562030498405,0.0 -68.90303660325041,44.10284911641011,0.0 -68.90290196445754,44.103052314227654,0.0 -68.90183854619482,44.10272949156206,0.0 -68.90200056914912,44.10224935103727,0.0 -68.90215346493544,44.10205926028215,0.0 -68.90338015030308,44.10229948543707,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Placemark id="3">
+            <Style id="6">
+                <LineStyle id="7">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <name>Trail Armbrust Hill Town Park 4</name>
+            <description/>
+            <MultiGeometry id="2">
+                <LineString id="4">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.830006,44.04663,14.4 -68.830267,44.046424,17.0 -68.830311,44.046311,18.200001 -68.830167,44.046233,19.4 -68.830101,44.046133,21.6 -68.830231,44.04597,21.0 -68.830452,44.045858,20.6 -68.830541,44.045773,20.6 -68.830671,44.045597,20.200001 -68.830898,44.045586,20.200001 -68.83114,44.045485,20.4 -68.831279,44.045353,22.6 -68.831403,44.04526,24.0 -68.83155,44.04519,22.0 -68.831651,44.045058,20.799999 -68.831884,44.044935,18.0 -68.832175,44.044806,15.6 -68.832175,44.044806,15.6</coordinates>
+                </LineString>
+            </MultiGeometry>
+        </Placemark>
+    </Document>
+</kml>

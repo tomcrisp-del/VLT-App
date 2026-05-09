@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Anchor Parcel</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.8872061677631,44.111347093765744,0.0 -68.88691950812918,44.11079459334209,0.0 -68.88664330221162,44.11022998576212,0.0 -68.88590792077807,44.1106459952249,0.0 -68.885998791834,44.11086215912002,0.0 -68.88709385046194,44.11138700841434,0.0 -68.8872061677631,44.111347093765744,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

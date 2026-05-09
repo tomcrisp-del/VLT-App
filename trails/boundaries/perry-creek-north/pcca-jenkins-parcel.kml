@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>PCCA: Jenkins Parcel</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.8866701729171,44.11895305446157,0.0 -68.88573098156836,44.1126940325679,0.0 -68.8842526516645,44.11322975330785,0.0 -68.88394344523151,44.11332294968983,0.0 -68.88387143976789,44.11342135463141,0.0 -68.88359225547545,44.113379535351385,0.0 -68.88332834206702,44.11344903461139,0.0 -68.88322892032248,44.113596122810634,0.0 -68.88249242268017,44.113772143317334,0.0 -68.88196499836233,44.113730933493315,0.0 -68.8830492415324,44.11688197947652,0.0 -68.87813477567464,44.11784404639988,0.0 -68.87889580838836,44.119605914771256,0.0 -68.88193042430461,44.11910939925221,0.0 -68.88461561950528,44.1189961961384,0.0 -68.8866701729171,44.11895305446157,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Watershed Area</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.85438253269899,44.07275693623524,0.0 -68.85204106873965,44.06823700655096,0.0 -68.84287268576558,44.06958491407852,0.0 -68.84407162815452,44.07275693623524,0.0 -68.8475415084801,44.07178406572555,0.0 -68.84833139993641,44.07180433402414,0.0 -68.84972781518925,44.07445942114515,0.0 -68.84950213191637,44.07522957680018,0.0 -68.8501368661219,44.07577678656955,0.0 -68.85167433342076,44.07536131294799,0.0 -68.85108191482838,44.073040687121676,0.0 -68.85438253269899,44.07275693623524,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

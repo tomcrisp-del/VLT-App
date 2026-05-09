@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Dyer &amp; Day: Perry Creek</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.88863801985983,44.11105131662546,0.0 -68.89122984589987,44.110433999822305,0.0 -68.89118611190548,44.11026273395993,0.0 -68.89110501059842,44.11012483344717,0.0 -68.89098920520618,44.10998438524135,0.0 -68.89086203223107,44.10983918250176,0.0 -68.8907148168021,44.10968721558322,0.0 -68.89055677289927,44.10956285809689,0.0 -68.89036287523709,44.109438007183144,0.0 -68.8901475242898,44.109323780507054,0.0 -68.88991364143531,44.109244047974585,0.0 -68.88972580872957,44.10917640992517,0.0 -68.88954183283384,44.10912770775914,0.0 -68.88863801985983,44.11105131662546,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

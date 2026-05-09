@@ -1,0 +1,683 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Placemark id="3">
+            <Style id="6">
+                <LineStyle id="7">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="10">
+                <LineStyle id="11">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="14">
+                <LineStyle id="15">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="18">
+                <LineStyle id="19">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="22">
+                <LineStyle id="23">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="26">
+                <LineStyle id="27">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="30">
+                <LineStyle id="31">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="34">
+                <LineStyle id="35">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="38">
+                <LineStyle id="39">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="42">
+                <LineStyle id="43">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="46">
+                <LineStyle id="47">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="50">
+                <LineStyle id="51">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="54">
+                <LineStyle id="55">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="58">
+                <LineStyle id="59">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="62">
+                <LineStyle id="63">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="66">
+                <LineStyle id="67">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="70">
+                <LineStyle id="71">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="74">
+                <LineStyle id="75">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="78">
+                <LineStyle id="79">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="82">
+                <LineStyle id="83">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="86">
+                <LineStyle id="87">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="90">
+                <LineStyle id="91">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="94">
+                <LineStyle id="95">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="98">
+                <LineStyle id="99">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="102">
+                <LineStyle id="103">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="106">
+                <LineStyle id="107">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="110">
+                <LineStyle id="111">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="114">
+                <LineStyle id="115">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="118">
+                <LineStyle id="119">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="122">
+                <LineStyle id="123">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="126">
+                <LineStyle id="127">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="130">
+                <LineStyle id="131">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="134">
+                <LineStyle id="135">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="138">
+                <LineStyle id="139">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="142">
+                <LineStyle id="143">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="146">
+                <LineStyle id="147">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="150">
+                <LineStyle id="151">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="154">
+                <LineStyle id="155">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="158">
+                <LineStyle id="159">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="162">
+                <LineStyle id="163">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="166">
+                <LineStyle id="167">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="170">
+                <LineStyle id="171">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="174">
+                <LineStyle id="175">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="178">
+                <LineStyle id="179">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="182">
+                <LineStyle id="183">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="186">
+                <LineStyle id="187">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="190">
+                <LineStyle id="191">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="194">
+                <LineStyle id="195">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="198">
+                <LineStyle id="199">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="202">
+                <LineStyle id="203">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="206">
+                <LineStyle id="207">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="210">
+                <LineStyle id="211">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="214">
+                <LineStyle id="215">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="218">
+                <LineStyle id="219">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="222">
+                <LineStyle id="223">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="226">
+                <LineStyle id="227">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <name>Starboard Rock Sanctuary Trail</name>
+            <description/>
+            <MultiGeometry id="2">
+                <LineString id="4">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820554,44.101056,15.394578 -68.820602,44.100788,17.828 -68.820612,44.10073,18.3536 -68.820612,44.10073,18.3536</coordinates>
+                </LineString>
+                <LineString id="8">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820612,44.10073,18.3536 -68.820612,44.10073,18.3536 -68.820612,44.10073,18.3536 -68.820612,44.10073,18.3536 -68.820708,44.100558,20.6288 -68.820708,44.100558,20.6288</coordinates>
+                </LineString>
+                <LineString id="12">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820708,44.100558,20.6288 -68.820708,44.100558,20.6288 -68.820708,44.100558,20.6288 -68.820708,44.100558,20.6288 -68.8209,44.100326,23.3064 -68.820908,44.100317,23.3964 -68.820908,44.100317,23.3964</coordinates>
+                </LineString>
+                <LineString id="16">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820908,44.100317,23.3964 -68.820908,44.100317,23.3964 -68.820908,44.100317,23.3964 -68.820908,44.100317,23.3964 -68.820976,44.100141,25.251503 -68.820976,44.100141,25.251503</coordinates>
+                </LineString>
+                <LineString id="20">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820976,44.100141,25.251503 -68.820976,44.100141,25.251503 -68.820976,44.100141,25.251503 -68.820976,44.100141,25.251503 -68.820962,44.099887,26.87 -68.820962,44.099887,26.87</coordinates>
+                </LineString>
+                <LineString id="24">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820962,44.099887,26.87 -68.820962,44.099887,26.87 -68.820962,44.099887,26.87 -68.820962,44.099887,26.87 -68.82084,44.099731,26.9924 -68.82084,44.099731,26.9924</coordinates>
+                </LineString>
+                <LineString id="28">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.82084,44.099731,26.9924 -68.82084,44.099731,26.9924 -68.82084,44.099731,26.9924 -68.82084,44.099731,26.9924 -68.820594,44.099682,24.519919 -68.820594,44.099682,24.519919</coordinates>
+                </LineString>
+                <LineString id="32">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820594,44.099682,24.519919 -68.820594,44.099682,24.519919 -68.820594,44.099682,24.519919 -68.820594,44.099682,24.519919 -68.820393,44.099661,21.423378 -68.820393,44.099661,21.423378</coordinates>
+                </LineString>
+                <LineString id="36">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820393,44.099661,21.423378 -68.820393,44.099661,21.423378 -68.820393,44.099661,21.423378 -68.820393,44.099661,21.423378 -68.8202,44.099685,18.39048 -68.8202,44.099685,18.39048</coordinates>
+                </LineString>
+                <LineString id="40">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.8202,44.099685,18.39048 -68.8202,44.099685,18.39048 -68.8202,44.099685,18.39048 -68.8202,44.099685,18.39048 -68.819929,44.099587,15.713252 -68.819929,44.099587,15.713252</coordinates>
+                </LineString>
+                <LineString id="44">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819929,44.099587,15.713252 -68.819929,44.099587,15.713252 -68.819929,44.099587,15.713252 -68.819929,44.099587,15.713252 -68.819984,44.099574,16.364671 -68.819955,44.099512,16.354003 -68.819883,44.099375,16.8023 -68.819883,44.099375,16.8023</coordinates>
+                </LineString>
+                <LineString id="48">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819883,44.099375,16.8023 -68.819883,44.099375,16.8023 -68.819883,44.099375,16.8023 -68.819883,44.099375,16.8023 -68.819879,44.099367,16.843755 -68.819812,44.099217,17.548636 -68.819807,44.099206,17.589184 -68.819807,44.099206,17.589184</coordinates>
+                </LineString>
+                <LineString id="52">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819807,44.099206,17.589184 -68.819807,44.099206,17.589184 -68.819807,44.099206,17.589184 -68.819807,44.099206,17.589184 -68.819722,44.099028,17.992801 -68.819722,44.099028,17.992801</coordinates>
+                </LineString>
+                <LineString id="56">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819722,44.099028,17.992801 -68.819722,44.099028,17.992801 -68.819722,44.099028,17.992801 -68.819722,44.099028,17.992801 -68.819715,44.099014,17.914621 -68.819676,44.098826,17.630765 -68.819676,44.098826,17.630765</coordinates>
+                </LineString>
+                <LineString id="60">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819676,44.098826,17.630765 -68.819676,44.098826,17.630765 -68.819676,44.098826,17.630765 -68.819676,44.098826,17.630765 -68.819669,44.09883,17.458296 -68.81965,44.098617,17.21364 -68.81965,44.098617,17.21364</coordinates>
+                </LineString>
+                <LineString id="64">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.81965,44.098617,17.21364 -68.81965,44.098617,17.21364 -68.81965,44.098617,17.21364 -68.81965,44.098617,17.21364 -68.819661,44.098425,16.964136 -68.819661,44.098425,16.964136</coordinates>
+                </LineString>
+                <LineString id="68">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819661,44.098425,16.964136 -68.819661,44.098425,16.964136 -68.819661,44.098425,16.964136 -68.819661,44.098425,16.964136 -68.81969,44.098307,16.884 -68.81969,44.098307,16.884</coordinates>
+                </LineString>
+                <LineString id="72">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.81969,44.098307,16.884 -68.81969,44.098307,16.884 -68.81969,44.098307,16.884 -68.81969,44.098307,16.884 -68.81979,44.098119,17.18827 -68.81979,44.098119,17.18827</coordinates>
+                </LineString>
+                <LineString id="76">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.81979,44.098119,17.18827 -68.81979,44.098119,17.18827 -68.81979,44.098119,17.18827 -68.81979,44.098119,17.18827 -68.819829,44.09797,17.266005 -68.819829,44.09797,17.266005</coordinates>
+                </LineString>
+                <LineString id="80">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819829,44.09797,17.266005 -68.819829,44.09797,17.266005 -68.819829,44.09797,17.266005 -68.819829,44.09797,17.266005 -68.819808,44.097819,17.045826 -68.819808,44.097819,17.045826</coordinates>
+                </LineString>
+                <LineString id="84">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819808,44.097819,17.045826 -68.819808,44.097819,17.045826 -68.819808,44.097819,17.045826 -68.819808,44.097819,17.045826 -68.819943,44.09765,16.54 -68.819943,44.09765,16.54</coordinates>
+                </LineString>
+                <LineString id="88">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.819943,44.09765,16.54 -68.819943,44.09765,16.54 -68.819943,44.09765,16.54 -68.819943,44.09765,16.54 -68.820022,44.097475,16.082872 -68.820022,44.097475,16.082872</coordinates>
+                </LineString>
+                <LineString id="92">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820022,44.097475,16.082872 -68.820022,44.097475,16.082872 -68.820022,44.097475,16.082872 -68.820022,44.097475,16.082872 -68.82019,44.097239,16.296914 -68.82019,44.097239,16.296914</coordinates>
+                </LineString>
+                <LineString id="96">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.82019,44.097239,16.296914 -68.82019,44.097239,16.296914 -68.82019,44.097239,16.296914 -68.82019,44.097239,16.296914 -68.82029,44.097082,16.482589 -68.82029,44.097082,16.482589</coordinates>
+                </LineString>
+                <LineString id="100">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.82029,44.097082,16.482589 -68.82029,44.097082,16.482589 -68.82029,44.097082,16.482589 -68.82029,44.097082,16.482589 -68.820423,44.096946,16.474528 -68.820423,44.096946,16.474528</coordinates>
+                </LineString>
+                <LineString id="104">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820423,44.096946,16.474528 -68.820423,44.096946,16.474528 -68.820423,44.096946,16.474528 -68.820423,44.096946,16.474528 -68.820537,44.096692,16.127508 -68.820537,44.096692,16.127508</coordinates>
+                </LineString>
+                <LineString id="108">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820537,44.096692,16.127508 -68.820537,44.096692,16.127508 -68.820537,44.096692,16.127508 -68.820537,44.096692,16.127508 -68.820701,44.096449,15.363093 -68.820709,44.096437,15.351924 -68.820709,44.096437,15.351924</coordinates>
+                </LineString>
+                <LineString id="112">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820709,44.096437,15.351924 -68.820709,44.096437,15.351924 -68.820709,44.096437,15.351924 -68.820709,44.096437,15.351924 -68.820866,44.096255,15.789717 -68.820866,44.096255,15.789717</coordinates>
+                </LineString>
+                <LineString id="116">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.820866,44.096255,15.789717 -68.820866,44.096255,15.789717 -68.820866,44.096255,15.789717 -68.820866,44.096255,15.789717 -68.821109,44.096067,15.172793 -68.821109,44.096067,15.172793</coordinates>
+                </LineString>
+                <LineString id="120">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.821109,44.096067,15.172793 -68.821109,44.096067,15.172793 -68.821109,44.096067,15.172793 -68.821109,44.096067,15.172793 -68.821448,44.095951,13.5764 -68.821467,44.095944,13.6016 -68.821467,44.095944,13.6016</coordinates>
+                </LineString>
+                <LineString id="124">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.821467,44.095944,13.6016 -68.821467,44.095944,13.6016 -68.821467,44.095944,13.6016 -68.821467,44.095944,13.6016 -68.821756,44.095818,15.148152 -68.821756,44.095818,15.148152</coordinates>
+                </LineString>
+                <LineString id="128">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.821756,44.095818,15.148152 -68.821756,44.095818,15.148152 -68.821756,44.095818,15.148152 -68.821756,44.095818,15.148152 -68.821917,44.095582,20.233406 -68.821917,44.095582,20.233406</coordinates>
+                </LineString>
+                <LineString id="132">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.821917,44.095582,20.233406 -68.821917,44.095582,20.233406 -68.821917,44.095582,20.233406 -68.821917,44.095582,20.233406 -68.822146,44.09559,24.767626 -68.822146,44.09559,24.767626</coordinates>
+                </LineString>
+                <LineString id="136">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822146,44.09559,24.767626 -68.822146,44.09559,24.767626 -68.822146,44.09559,24.767626 -68.822146,44.09559,24.767626 -68.822317,44.095685,27.081602 -68.822317,44.095685,27.081602</coordinates>
+                </LineString>
+                <LineString id="140">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822317,44.095685,27.081602 -68.822317,44.095685,27.081602 -68.822317,44.095685,27.081602 -68.822317,44.095685,27.081602 -68.822446,44.095826,27.008136 -68.822446,44.095826,27.008136</coordinates>
+                </LineString>
+                <LineString id="144">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822446,44.095826,27.008136 -68.822446,44.095826,27.008136 -68.822446,44.095826,27.008136 -68.822446,44.095826,27.008136 -68.822628,44.095911,28.6264 -68.822628,44.095911,28.6264</coordinates>
+                </LineString>
+                <LineString id="148">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822628,44.095911,28.6264 -68.822628,44.095911,28.6264 -68.822628,44.095911,28.6264 -68.822628,44.095911,28.6264 -68.82265,44.09569,33.75472 -68.82265,44.09569,33.75472</coordinates>
+                </LineString>
+                <LineString id="152">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.82265,44.09569,33.75472 -68.82265,44.09569,33.75472 -68.82265,44.09569,33.75472 -68.82265,44.09569,33.75472 -68.822546,44.09549,36.559555 -68.822546,44.09549,36.559555</coordinates>
+                </LineString>
+                <LineString id="156">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822546,44.09549,36.559555 -68.822546,44.09549,36.559555 -68.822546,44.09549,36.559555 -68.822546,44.09549,36.559555 -68.822495,44.095223,40.30795 -68.822492,44.095205,40.387546 -68.822492,44.095205,40.387546</coordinates>
+                </LineString>
+                <LineString id="160">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822492,44.095205,40.387546 -68.822492,44.095205,40.387546 -68.822492,44.095205,40.387546 -68.822492,44.095205,40.387546 -68.822495,44.095009,41.862617 -68.822495,44.095009,41.862617</coordinates>
+                </LineString>
+                <LineString id="164">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822495,44.095009,41.862617 -68.822495,44.095009,41.862617 -68.822495,44.095009,41.862617 -68.822495,44.095009,41.862617 -68.822416,44.094843,41.749884 -68.822416,44.094843,41.749884</coordinates>
+                </LineString>
+                <LineString id="168">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822416,44.094843,41.749884 -68.822416,44.094843,41.749884 -68.822416,44.094843,41.749884 -68.822416,44.094843,41.749884 -68.822416,44.094709,42.473606 -68.822416,44.094709,42.473606</coordinates>
+                </LineString>
+                <LineString id="172">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822416,44.094709,42.473606 -68.822416,44.094709,42.473606 -68.822416,44.094709,42.473606 -68.822416,44.094709,42.473606 -68.82258,44.094519,44.786701 -68.82258,44.094519,44.786701</coordinates>
+                </LineString>
+                <LineString id="176">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.82258,44.094519,44.786701 -68.82258,44.094519,44.786701 -68.82258,44.094519,44.786701 -68.82258,44.094519,44.786701 -68.822741,44.094388,46.265082 -68.822741,44.094388,46.265082</coordinates>
+                </LineString>
+                <LineString id="180">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822741,44.094388,46.265082 -68.822741,44.094388,46.265082 -68.822741,44.094388,46.265082 -68.822741,44.094388,46.265082 -68.822931,44.094265,46.9056 -68.822931,44.094265,46.9056</coordinates>
+                </LineString>
+                <LineString id="184">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822931,44.094265,46.9056 -68.822931,44.094265,46.9056 -68.822931,44.094265,46.9056 -68.822931,44.094265,46.9056 -68.823188,44.094157,44.847585 -68.823188,44.094157,44.847585</coordinates>
+                </LineString>
+                <LineString id="188">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823188,44.094157,44.847585 -68.823188,44.094157,44.847585 -68.823188,44.094157,44.847585 -68.823188,44.094157,44.847585 -68.823366,44.094232,43.588 -68.823366,44.094232,43.588</coordinates>
+                </LineString>
+                <LineString id="192">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823366,44.094232,43.588 -68.823366,44.094232,43.588 -68.823366,44.094232,43.588 -68.823366,44.094232,43.588 -68.823481,44.094357,44.146 -68.823481,44.094357,44.146</coordinates>
+                </LineString>
+                <LineString id="196">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823481,44.094357,44.146 -68.823481,44.094357,44.146 -68.823481,44.094357,44.146 -68.823481,44.094357,44.146 -68.823359,44.094517,45.963335 -68.823359,44.094517,45.963335</coordinates>
+                </LineString>
+                <LineString id="200">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823359,44.094517,45.963335 -68.823359,44.094517,45.963335 -68.823359,44.094517,45.963335 -68.823359,44.094517,45.963335 -68.823377,44.094596,44.977368 -68.823377,44.094596,44.977368</coordinates>
+                </LineString>
+                <LineString id="204">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823377,44.094596,44.977368 -68.823377,44.094596,44.977368 -68.823377,44.094596,44.977368 -68.823377,44.094596,44.977368 -68.823309,44.094676,44.5868 -68.823309,44.094676,44.5868</coordinates>
+                </LineString>
+                <LineString id="208">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823309,44.094676,44.5868 -68.823309,44.094676,44.5868 -68.823309,44.094676,44.5868 -68.823309,44.094676,44.5868 -68.823091,44.094714,44.9612 -68.823091,44.094714,44.9612</coordinates>
+                </LineString>
+                <LineString id="212">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.823091,44.094714,44.9612 -68.823091,44.094714,44.9612 -68.823091,44.094714,44.9612 -68.823091,44.094714,44.9612 -68.822966,44.094758,45.0648 -68.822966,44.094758,45.0648</coordinates>
+                </LineString>
+                <LineString id="216">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822966,44.094758,45.0648 -68.822966,44.094758,45.0648 -68.822966,44.094758,45.0648 -68.822966,44.094758,45.0648 -68.822769,44.094786,45.4776 -68.822769,44.094786,45.4776</coordinates>
+                </LineString>
+                <LineString id="220">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822769,44.094786,45.4776 -68.822769,44.094786,45.4776 -68.822769,44.094786,45.4776 -68.822769,44.094786,45.4776 -68.822626,44.094758,44.6496 -68.822626,44.094758,44.6496</coordinates>
+                </LineString>
+                <LineString id="224">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.822626,44.094758,44.6496 -68.822626,44.094758,44.6496 -68.822626,44.094758,44.6496 -68.822626,44.094758,44.6496 -68.822416,44.094709,42.473606 -68.822416,44.094709,42.473606</coordinates>
+                </LineString>
+            </MultiGeometry>
+        </Placemark>
+    </Document>
+</kml>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ff32BD4A</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Pardoe at Vinal Cove</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.85402545035336,44.08649195790588,0.0 -68.8537239133411,44.085502559079345,0.0 -68.85370950458345,44.08536283601043,0.0 -68.85352092025975,44.0852630673906,0.0 -68.85294953302844,44.084806218503104,0.0 -68.85264334692546,44.0846703750361,0.0 -68.85255064734572,44.08475817428521,0.0 -68.85163197063257,44.08546840457481,0.0 -68.84949984822643,44.08496636984336,0.0 -68.8489345422299,44.08440807209689,0.0 -68.84397389599208,44.08547589762364,0.0 -68.84451937961752,44.08709867282988,0.0 -68.84540371712738,44.08719958100684,0.0 -68.85402545035336,44.08649195790588,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

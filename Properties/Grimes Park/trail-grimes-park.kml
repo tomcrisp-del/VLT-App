@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Placemark id="3">
+            <Style id="6">
+                <LineStyle id="7">
+                    <color>ff32BD4A</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <name>Grimes Park Trail</name>
+            <description/>
+            <MultiGeometry id="2">
+                <LineString id="4">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.8402,44.043693,0.6 -68.840202,44.043675,2.2 -68.840195,44.043684,3.1 -68.840332,44.043682,4.0 -68.84046,44.043618,4.0 -68.840606,44.043507,6.0 -68.840727,44.043447,7.0 -68.841081,44.043438,9.0 -68.841176,44.043413,9.0 -68.841201,44.043388,7.0 -68.841223,44.043268,7.0 -68.841194,44.043151,5.0 -68.841199,44.043093,4.0 -68.841094,44.043014,6.0 -68.841061,44.04302,6.0 -68.841027,44.043005,-19999.0 -68.840992,44.043008,6.0 -68.840871,44.042974,6.0 -68.840516,44.043431,6.9 -68.840465,44.04347,3.0 -68.84038,44.043499,4.0 -68.840288,44.043568,4.0 -68.840202,44.043651,-19999.0 -68.840179,44.043703,4.7</coordinates>
+                </LineString>
+            </MultiGeometry>
+        </Placemark>
+    </Document>
+</kml>

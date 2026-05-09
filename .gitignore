@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Claude Code config
+.claude/
+
+# Editor cruft
+*.swp
+*~
+.vscode/
+.idea/
+
+# Node (if ever added)
+node_modules/
+
+# Logs
+*.log

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Placemark id="3">
+            <Style id="6">
+                <LineStyle id="7">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="10">
+                <LineStyle id="11">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="14">
+                <LineStyle id="15">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="18">
+                <LineStyle id="19">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <Style id="22">
+                <LineStyle id="23">
+                    <color>ff00EFFF</color>
+                    <colorMode>normal</colorMode>
+                    <width>1</width>
+                </LineStyle>
+            </Style>
+            <name>Trail Armbrust Hill Town Park 2</name>
+            <description/>
+            <MultiGeometry id="2">
+                <LineString id="4">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.830006,44.04663,14.4 -68.830267,44.046424,17.0 -68.830311,44.046311,18.200001 -68.830167,44.046233,19.4 -68.830101,44.046133,21.6 -68.830101,44.046133,21.6</coordinates>
+                </LineString>
+                <LineString id="8">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.830101,44.046133,21.6 -68.830101,44.046133,21.6 -68.829667,44.045994,26.200001 -68.829653,44.045989,26.200001 -68.829403,44.045956,25.200001 -68.829403,44.045956,25.200001</coordinates>
+                </LineString>
+                <LineString id="12">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.829403,44.045956,25.200001 -68.829403,44.045956,25.200001 -68.829396,44.045955,25.200001 -68.829505,44.045808,25.6 -68.829557,44.045687,25.6 -68.829675,44.045562,26.6 -68.82967,44.045523,26.799999 -68.829748,44.045437,30.0 -68.829748,44.045437,30.0</coordinates>
+                </LineString>
+                <LineString id="16">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.829748,44.045437,30.0 -68.829748,44.045437,30.0 -68.829748,44.045437,30.0 -68.829748,44.045437,30.0 -68.829895,44.045418,32.599998 -68.829895,44.045418,32.599998</coordinates>
+                </LineString>
+                <LineString id="20">
+                    <extrude>0</extrude>
+                    <altitudeMode>clampToGround</altitudeMode>
+                    <coordinates>-68.829895,44.045418,32.599998 -68.829895,44.045418,32.599998 -68.830016,44.045295,33.400002 -68.830073,44.045184,34.0 -68.830201,44.045051,34.599998 -68.830149,44.044692,33.200001 -68.83037,44.044256,30.6 -68.830557,44.0442,29.6 -68.830655,44.044137,28.799999 -68.830835,44.044134,28.200001 -68.83082,44.044057,27.6 -68.830723,44.044001,27.200001 -68.83064,44.043991,27.4 -68.830587,44.043865,25.6 -68.830596,44.043784,23.200001 -68.830679,44.043746,22.799999 -68.830655,44.043627,20.4 -68.830515,44.04356,20.200001 -68.83054,44.042928,9.4 -68.83054,44.042928,9.4</coordinates>
+                </LineString>
+            </MultiGeometry>
+        </Placemark>
+    </Document>
+</kml>

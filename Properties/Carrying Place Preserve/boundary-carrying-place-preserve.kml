@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ffFF7904</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ffFF7904</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Carrying Place Preserve Boundary</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.83276075808946,44.08866409117948,0.0 -68.83288605087175,44.09120184755028,0.0 -68.83161641734246,44.09165779223821,0.0 -68.83148277170761,44.09154980565637,0.0 -68.83174171012473,44.09135782902331,0.0 -68.83140759603795,44.091141854566615,0.0 -68.8312154804379,44.09082389073626,0.0 -68.83054725226437,44.090445931507446,0.0 -68.83058066367325,44.09016995975071,0.0 -68.83043031233395,44.08978599690403,0.0 -68.83047207659472,44.08962401183015,0.0 -68.83120712758603,44.08895206901042,0.0 -68.83144936029872,44.088808080270184,0.0 -68.83194217857664,44.08868808938524,0.0 -68.83276075808946,44.08866409117948,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>

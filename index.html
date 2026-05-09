@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Vinalhaven Trail Guide</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Trail List View (main hub) -->
+    <div id="list-view">
+        <header class="main-banner">
+            <img src="Logos/banner.png" alt="Vinalhaven Trail Guide" class="banner-img">
+        </header>
+        <div id="trail-grid"></div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="main-nav" class="bottom-nav">
+            <button id="nav-wildlife" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Property Detail View (split: info top, map bottom) -->
+    <div id="detail-view" class="hidden">
+        <div id="detail-info">
+            <button id="detail-back-btn" class="map-back-btn" aria-label="Back to trail list">&larr; Trails</button>
+            <div id="detail-photo-carousel">
+                <div id="carousel-track"></div>
+                <button id="carousel-prev" class="carousel-arrow carousel-arrow-prev hidden" aria-label="Previous photo">&#8249;</button>
+                <button id="carousel-next" class="carousel-arrow carousel-arrow-next hidden" aria-label="Next photo">&#8250;</button>
+                <div id="carousel-dots"></div>
+            </div>
+            <div id="detail-content">
+                <div id="detail-header">
+                    <img id="detail-org-logo" alt="" />
+                    <img id="detail-org-logo-2" alt="" style="display:none" />
+                    <a id="detail-title" href="" target="_blank" rel="noopener"></a>
+                </div>
+                <div id="detail-length"></div>
+                <div id="detail-desc"></div>
+            </div>
+        </div>
+        <div id="detail-map">
+            <div class="map-loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading map...</div>
+            </div>
+        </div>
+        <!-- Wildlife Panel (hidden by default, shown when Wildlife tab active) -->
+        <div id="wildlife-panel" class="hidden">
+            <div id="wildlife-grid-view">
+                <div id="wildlife-grid-header">
+                    <button id="wildlife-back-btn" class="wildlife-nav-btn">&larr; Back</button>
+                    <h2 id="wildlife-grid-title">Wildlife of<br>Vinalhaven</h2>
+                </div>
+                <div id="wildlife-category-bar">
+                    <button class="category-pill active" data-category="all">All</button>
+
+                    <button class="category-pill" data-category="bird">Birds</button>
+                    <button class="category-pill" data-category="mammal">Mammals</button>
+                    <button class="category-pill" data-category="herp">Reptiles &amp; Amphibians</button>
+                    <button class="category-pill" data-category="insect">Insects &amp; Invertebrates</button>
+
+                    <button class="category-pill" data-category="tree">Trees</button>
+                    <button class="category-pill" data-category="shrub">Shrubs</button>
+                    <button class="category-pill" data-category="wildflower">Wildflowers</button>
+                    <button class="category-pill" data-category="fern">Ferns &amp; Allies</button>
+                    <button class="category-pill" data-category="grass">Grasses &amp; Sedges</button>
+
+                    <button class="category-pill" data-category="fungus">Fungi</button>
+                    <button class="category-pill" data-category="moss">Mosses</button>
+                    <button class="category-pill" data-category="lichen">Lichens</button>
+                    <button class="category-pill" data-category="algae">Algae &amp; Seaweeds</button>
+                </div>
+                <div id="wildlife-sort-bar">
+                    <button class="sort-btn active" data-sort="alpha">A&ndash;Z</button>
+                    <button class="sort-btn" data-sort="abundance">Abundance</button>
+                </div>
+                <div class="wildlife-search-bar">
+                    <input type="text" id="wildlife-search" class="wildlife-search-input" placeholder="Search species..." />
+                    <a href="https://www.inaturalist.org/observations/identify" target="_blank" rel="noopener" class="wildlife-camera-btn" title="Identify with iNaturalist">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </a>
+                </div>
+                <div id="wildlife-grid"></div>
+                <div id="wildlife-empty" class="hidden">No species in this category yet.</div>
+            </div>
+            <div id="wildlife-detail-view" class="hidden">
+                <div id="wildlife-detail-header">
+                    <button id="wildlife-detail-back-btn" class="wildlife-nav-btn">&larr; Back</button>
+                </div>
+                <img id="wildlife-detail-photo" alt="" />
+                <div id="wildlife-detail-content">
+                    <h2 id="wildlife-detail-name"></h2>
+                    <p id="wildlife-detail-scientific"></p>
+                    <div id="wildlife-detail-meta">
+                        <span id="wildlife-detail-category" class="category-badge"></span>
+                        <span id="wildlife-detail-abundance" class="abundance-badge"></span>
+                        <span id="wildlife-detail-native" class="native-badge"></span>
+                    </div>
+                    <p id="wildlife-detail-desc"></p>
+                </div>
+            </div>
+        </div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="detail-nav" class="bottom-nav">
+            <button class="detail-tab" data-tab="wildlife">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button class="detail-tab" data-tab="activities">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button class="detail-tab" data-tab="map">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button class="detail-tab" data-tab="owls">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button class="detail-tab" data-tab="events">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Wildlife View (Global site-wide) -->
+    <div id="wildlife-view" class="hidden">
+        <div id="wildlife-header">
+            <button id="wildlife-view-back-btn">&larr; Trails</button>
+            <h2>Wildlife of<br>Vinalhaven</h2>
+        </div>
+        <div id="global-wildlife-category-bar" class="wildlife-filter-bar">
+            <button class="category-pill active" data-category="all">All</button>
+            <button class="category-pill" data-category="bird">Birds</button>
+            <button class="category-pill" data-category="mammal">Mammals</button>
+            <button class="category-pill" data-category="herp">Reptiles &amp; Amphibians</button>
+            <button class="category-pill" data-category="insect">Insects &amp; Invertebrates</button>
+            <button class="category-pill" data-category="tree">Trees</button>
+            <button class="category-pill" data-category="shrub">Shrubs</button>
+            <button class="category-pill" data-category="wildflower">Wildflowers</button>
+            <button class="category-pill" data-category="fern">Ferns &amp; Allies</button>
+            <button class="category-pill" data-category="grass">Grasses &amp; Sedges</button>
+            <button class="category-pill" data-category="fungus">Fungi</button>
+            <button class="category-pill" data-category="moss">Mosses</button>
+            <button class="category-pill" data-category="lichen">Lichens</button>
+            <button class="category-pill" data-category="algae">Algae &amp; Seaweeds</button>
+        </div>
+        <div id="global-wildlife-sort-bar" class="wildlife-filter-bar">
+            <button class="sort-btn active" data-sort="alpha">A&ndash;Z</button>
+            <button class="sort-btn" data-sort="abundance">Abundance</button>
+        </div>
+        <div class="wildlife-search-bar">
+            <input type="text" id="global-wildlife-search" class="wildlife-search-input" placeholder="Search species..." />
+            <a href="https://www.inaturalist.org/observations/identify" target="_blank" rel="noopener" class="wildlife-camera-btn" title="Identify with iNaturalist">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </a>
+        </div>
+        <div id="global-wildlife-list"></div>
+
+        <!-- Global Species Detail (overlay) -->
+        <div id="global-species-detail-view" class="hidden">
+            <div id="global-species-detail-header">
+                <button id="global-species-detail-back-btn" class="wildlife-nav-btn">&larr; Back</button>
+            </div>
+            <img id="global-species-detail-photo" alt="" />
+            <div id="global-species-detail-content">
+                <h2 id="global-species-detail-name"></h2>
+                <p id="global-species-detail-scientific"></p>
+                <div id="global-species-detail-meta">
+                    <span id="global-species-detail-category" class="category-badge"></span>
+                    <span id="global-species-detail-abundance" class="abundance-badge"></span>
+                    <span id="global-species-detail-native" class="native-badge"></span>
+                </div>
+                <p id="global-species-detail-desc"></p>
+            </div>
+        </div>
+
+        <!-- Persistent Bottom Navigation -->
+        <nav id="wildlife-main-nav" class="bottom-nav">
+            <button id="wildlife-nav-wildlife" class="nav-btn active">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="wildlife-nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="wildlife-nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="wildlife-nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="wildlife-nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Island Map View -->
+    <div id="island-map-view" class="hidden">
+        <button id="map-back-btn">&larr; Trails</button>
+        <div id="all-map">
+            <div class="map-loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading map...</div>
+            </div>
+        </div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="map-main-nav" class="bottom-nav">
+            <button id="map-nav-wildlife" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="map-nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="map-nav-map" class="nav-btn active">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="map-nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="map-nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Activities View (Placeholder) -->
+    <div id="activities-view" class="hidden">
+        <div id="activities-header">
+            <button id="activities-back-btn">&larr; Trails</button>
+            <h2>Trail Info &<br>Resources</h2>
+        </div>
+        <div id="activities-content">
+            <!-- Resource Dropdowns -->
+            <!-- Wildlife of Vinalhaven — visible to logged-in Owls only -->
+            <div id="wildlife-resources-item" class="hidden">
+                <button class="wildlife-resources-btn" id="wildlife-resources-btn">Wildlife of Vinalhaven <span>→</span></button>
+            </div>
+            <div class="resources-dropdown resources-dropdown--featured">
+                <button class="dropdown-header" data-target="faq-section">Frequently Asked Questions <span class="dropdown-arrow">→</span></button>
+                <div id="faq-section" class="dropdown-content hidden">
+                    <div class="faq-accordion">
+                    <div class="faq-item">
+                        <button class="faq-question">What do the difficulty ratings on the VHTrails App mean?</button>
+                        <div class="faq-answer hidden">
+                            <p><span class="ts-diff-pill" style="background:#2a9d50">Easy</span> Gentle terrain with minimal elevation gain. Suitable for families with children, beginners, and those looking for a leisurely walk. Typically well-maintained paths with few obstacles. Usually less than a mile long.</p>
+                            <p></p>
+                            <p><span class="ts-diff-pill" style="background:#2563eb">Intermediate</span> Moderate terrain with some hills and uneven footing. Requires a reasonable level of fitness. May include some steep sections or rougher ground. Good for hikers with basic trail experience. Usually less than two miles long.</p>
+                            <p></p>
+                            <p><span class="ts-diff-pill" style="background:#e07000">Challenging</span> Steep terrain, significant elevation gain, and potentially rough or technical footing. Requires good fitness and trail experience. May involve scrambling over rocks or navigating uneven ground. Usually two miles or longer.</p>
+                            <p></p>
+                            <p><span class="ts-diff-pill" style="background:#dc2626">Very Challenging</span> Extremely steep sections, significant elevation gain, and difficult terrain. Best for experienced hikers in good physical condition. May include steep drops or exposed sections. May require kayak or small watercraft to access.</p>
+                            <p></p>
+                            <p>Many trails offer multiple loop options of varying difficulty, so you can often adjust the challenge level by choosing a shorter route.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">What do the different feature tags mean?</button>
+                        <div class="faq-answer hidden">
+                            <p><strong>TERRAIN FEATURES:</strong></p>
+                            <ul><li><span class="ts-chip ts-chip-terrain">Steep</span> - Significant elevation gain or downhill sections</li><li><span class="ts-chip ts-chip-terrain">Uneven Footing</span> - Rocky, root-filled, or otherwise uneven ground</li><li><span class="ts-chip ts-chip-terrain">Wet Ground</span> - Marshy areas, stream crossings, or muddy sections</li><li><span class="ts-chip ts-chip-terrain">Shaded</span> - Mostly under tree cover (good in hot weather)</li><li><span class="ts-chip ts-chip-terrain">Sun Exposed</span> - Open areas with little shade (bring sun protection)</li></ul>
+                            <p><strong>HIGHLIGHTS & SCENIC FEATURES:</strong></p>
+                            <ul><li><span class="ts-chip ts-chip-highlight">Scenic Views</span> - Panoramic vistas or notable viewpoints</li><li><span class="ts-chip ts-chip-highlight">Shoreline</span> - Direct access to water views or beaches</li><li><span class="ts-chip ts-chip-highlight">Beach Access</span> - Sandy/stony beach suitable for walking</li><li><span class="ts-chip ts-chip-highlight">Waterfall</span> - Cascading water feature</li><li><span class="ts-chip ts-chip-highlight">Quarry</span> - Historic quarry site (from Vinalhaven's granite quarrying heritage)</li><li><span class="ts-chip ts-chip-highlight">Historical Sites</span> - Historical sites or structures</li></ul>
+                            <p><strong>AMENITIES:</strong></p>
+                            <ul><li><span class="ts-chip ts-chip-amenity">Benches</span> - Resting spots along the trail and potential picnic locations</li><li><span class="ts-chip ts-chip-amenity">Swimming</span> - Safe water access for swimming</li></ul>
+                            <p><strong>RESTRICTIONS:</strong></p>
+                            <ul><li><span class="ts-chip ts-chip-restriction">No Dogs</span> - Dogs not permitted on this trail. This is a STRICT rule.</li><li><span class="ts-chip ts-chip-restriction">Boat Access Only</span> - Accessible only by private boat</li></ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">Can I bring my dog on the trails?</button>
+                        <div class="faq-answer hidden">
+                            <p>Most Vinalhaven trails welcome dogs, but a few have restrictions. Properties with Sanctuary in the name, such as Starboard Rock Sanctuary and Whitmore Pond Sanctuary do not allow domesticated animals. Check each trail's feature tags before you go.</p>
+                            <p><strong>TIPS FOR HIKING WITH DOGS:</strong></p>
+                            <ul><li>Keep dogs on leash where required by local regulations</li><li>Pack water for your dog</li><li>Watch for rough terrain that may hurt paws</li><li>Be mindful of wildlife - keep your dog close</li><li>Clean up after your dog on and off trail</li><li>Some trails have muddy sections - plan for cleanup</li><li>Consider your dog's fitness level for longer hikes</li></ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">What are the safety rules and etiquette for Vinalhaven trails?</button>
+                        <div class="faq-answer hidden">
+                            <p><strong>SAFETY FIRST:</strong></p>
+                            <ul><li>Stay on marked trails - it's easy to get lost</li><li>Tell someone where you're going and when you'll return</li><li>Bring water and snacks, even for short hikes</li><li>Wear appropriate footwear with good traction</li><li>Check weather before heading out</li><li>Start early to ensure daylight to return</li><li>Bring a charged phone or GPS device</li><li>Use the buddy system - don't do long hikes alone, if possible</li></ul>
+                            <p><strong>LEAVE NO TRACE PRINCIPLES:</strong></p>
+                            <ul><li>Pack out all trash - leave no trace</li><li>Stay on designated trails to protect vegetation</li><li>Don't pick plants or flowers</li><li>Don't remove rocks, shells, or natural objects</li><li>Be quiet to avoid disturbing wildlife</li><li>Don't build cairns or rock stacks (except where marked)</li></ul>
+                            <p><strong>TRAIL ETIQUETTE:</strong></p>
+                            <ul><li>Yield to uphill hikers</li><li>Step aside for faster hikers</li><li>Control your dog at all times</li><li>Don't block trail with large groups</li><li>Respect private property at trailheads</li><li>Report trail hazards or damage to VLT Staff</li></ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">Are ticks a concern on Vinalhaven trails?</button>
+                        <div class="faq-answer hidden">
+                            <p>Yes. Deer ticks (black-legged ticks) are present on Vinalhaven and can carry Lyme disease and other tick-borne illnesses. Ticks are most active from spring through late fall, especially in tall grass, brush, and wooded areas.</p>
+                            <p><strong>TICK SAFETY TIPS:</strong></p>
+                            <ul><li>Wear long sleeves and light-colored clothing</li><li>Tuck pants into socks in high grass</li><li>Use insect repellent (DEET or picaridin recommended)</li><li>Stay in the center of trails when possible</li><li>Do a full tick check after your hike</li><li>Shower within two hours if possible</li><li>Check children and pets carefully</li></ul>
+                            <p>If you find an attached tick, remove it promptly with fine-tipped tweezers and monitor for symptoms. Contact your healthcare provider if you develop a rash or flu-like symptoms.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">When is the best time to hike Vinalhaven trails?</button>
+                        <div class="faq-answer hidden">
+                            <p><strong>SPRING (May-June):</strong> Wildflowers bloom, warming weather, longer daylight hours, some wet areas from snowmelt, great for wildlife viewing.</p>
+                            <p><strong>SUMMER (July-September):</strong> Peak hiking season, warmest weather but can be foggy, beaches and swimming at their best, more visitors on popular trails. Morning and late afternoon hikes are best to avoid midday sun and heat. More biting insects.</p>
+                            <p><strong>FALL (October-November):</strong> Spectacular foliage, cooler weather, fewer biting insects, shorter daylight so start hikes early. Migrating birds and raptors visible. Wear <strong style="color: #FF8C00;">blaze orange</strong> during hunting season (early September through mid-December).</p>
+                            <p><strong>WINTER (December-April):</strong> Quieter trails, shorter daylight hours (start early), potential ice and muddy sections, some trails may be difficult to navigate in deep snow. Beautiful but requires extra caution and equipment.</p>
+                            <p><strong>TIDES:</strong> Many Vinalhaven trails are affected by tides. Plan accordingly if your route includes shoreline sections. The Shore Trail at Tip Toe has a stone dam which is only passable outside of High Tide.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">Where do I park and how do I access the trails?</button>
+                        <div class="faq-answer hidden">
+                            <p>Most Vinalhaven trails have designated parking areas. Parking is free and available year-round, but can fill up during summer weekends. Parking overnight is not allowed at trailheads.</p>
+                            <p><strong>PARKING TIPS:</strong></p>
+                            <ul><li>Many trailheads have limited parking</li><li>Arrive early, especially on weekends</li><li>Park respectfully in designated areas only</li><li>Some trails share parking with other properties</li></ul>
+                            <p><strong>BOAT ACCESS:</strong></p>
+                            <ul><li>Barton's Quarry Preserve is accessible only by private boat</li><li>Some island trails may require water access</li><li>Plan accordingly if your trail requires boat transportation</li></ul>
+                            <p><strong>ACCESS INFORMATION:</strong></p>
+                            <ul><li>All trails are open dawn to dusk</li><li>Some are managed by different organizations (VLT, MCHT, Town)</li><li>Properties are closed during hunting seasons in some cases</li></ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">What weather hazards should I watch for on Vinalhaven?</button>
+                        <div class="faq-answer hidden">
+                            <p><strong>FOG:</strong> Fog is common, especially in summer mornings. Can reduce visibility significantly. Stay on marked trails if fog rolls in.</p>
+                            <p><strong>WIND:</strong> Island winds can be strong and gusty. Extra caution on cliffs and exposed areas. Wind chill can make it feel much colder in Winter and Spring.</p>
+                            <p><strong>TIDES:</strong> Some trails are affected by tide changes. Plan accordingly for shoreline sections. Check tide tables before your hike. Some areas only accessible at low tide.</p>
+                            <p><strong>RAIN:</strong> Sudden showers are common. Trails become muddy and slippery. Wear waterproof jacket and appropriate footwear. Stream crossings may be harder after rain. Exposed ledge can be exceptionally slippery when wet—exercise extreme caution.</p>
+                            <p><strong>LIGHTNING:</strong> Avoid ridge tops and exposed areas during storms. Don't shelter under isolated trees. Leave trail immediately if you see or hear lightning in the distance.</p>
+                            <p><strong>SEASONAL:</strong> Winter: Ice, snow, shorter daylight. Spring: Muddy sections from snowmelt. Summer: Heat, humidity, insects. Fall: Slippery leaves, shorter days.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">What should I pack for a Vinalhaven hike?</button>
+                        <div class="faq-answer hidden">
+                            <p><strong>ESSENTIALS (all hikes):</strong></p>
+                            <ul><li>Water (2+ liters depending on distance)</li><li>Snacks or light food</li><li>Map or trail app with GPS</li><li>Fully charged phone</li><li>Appropriate footwear with good traction</li><li>Layers (weather changes quickly on islands)</li><li>Sun protection (sunscreen, hat, sunglasses)</li></ul>
+                            <p><strong>RECOMMENDED:</strong></p>
+                            <ul><li>First aid kit (blister treatment, bandages, pain relief)</li><li>Natural insect repellent (choose environmentally responsible options)</li><li>Flashlight or headlamp (for late starts or emergencies)</li><li>Whistle (for emergencies or in fog)</li><li>Small trash bag if bringing food items (leave no trace)</li><li>Camera or binoculars</li><li>Trekking poles (helpful on steep sections)</li></ul>
+                            <p><strong>FOR LONGER HIKES (2+ hours):</strong></p>
+                            <ul><li>Extra water and food</li><li>Waterproof jacket</li><li>Extra batteries/portable charger</li><li>Hygiene items (pack out all waste and toilet paper)</li></ul>
+                            <p><strong>FOR SHORELINE/BEACH TRAILS:</strong> Waterproof bag, water shoes, towel, change of clothes, sunscreen.</p>
+                            <p><strong>FOR SWIMMING:</strong> Swimsuit, towel, change of clothes, waterproof bag, water shoes for rocky bottoms.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">Which trails are wheelchair or mobility-friendly?</button>
+                        <div class="faq-answer hidden">
+                            <p>While Vinalhaven's naturally rocky and forested terrain limits fully accessible trails, several offer easier access:</p>
+                            <p><strong>EASIEST OPTIONS:</strong></p>
+                            <ul><li>The Carrying Place Bridge Bench Trail is currently being transformed into a universally accessible trail, offering a short, wheelchair-accessible path to a beautiful waterfront vista with ample room for accessible parking. This project is expected to be completed by July of 2026.</li><li>Eleanor L. Campbell Preserve's Lower Parking Lot offers relatively flat sections and a lovely, secluded beach vista</li><li>Armbrust Hill Town Park - Some manageable areas close to the ICMS Building for those with mobility limitations</li><li>Skoog Park (Vinalhaven Land Trust Headquarters) offers a drive-up view of the Sands Cove and a short, universally accessible hardened path to picnic benches</li></ul>
+                            <p><strong>ACCESSIBILITY CONSIDERATIONS:</strong></p>
+                            <ul><li>Most Vinalhaven trails have natural, uneven terrain</li><li>No trails are currently wheelchair accessible due to uneven terrain</li><li>Most Vinalhaven trails have limited parking near trailheads</li><li>Uneven footing is common throughout the island</li><li>Some sections may be muddy or wet</li></ul>
+                            <p><strong>TIPS FOR THOSE WITH MOBILITY CHALLENGES:</strong></p>
+                            <ul><li>Choose trails rated "Easy" difficulty</li><li>Avoid trails with "Steep" or "Uneven Footing" tags</li><li>Start with shorter distances</li><li>Use trekking poles for extra stability</li><li>Bring a friend for support</li><li>Check trail conditions before going</li><li>Don't hesitate to turn back if it becomes too difficult</li></ul>
+                            <p><strong>CONTACT ORGANIZATIONS:</strong> Vinalhaven Land Trust (VLT) - Can discuss specific trail access for all VLT, MCHT and Town trails and parks</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">How do I check trail conditions or report issues?</button>
+                        <div class="faq-answer hidden">
+                            <p>Trail conditions change seasonally and after storms. Here's how to stay informed:</p>
+                            <p><strong>BEFORE YOU GO:</strong></p>
+                            <ul><li>Check weather forecast</li><li>Review recent condition updates on the Resources Page of the VHTrails App</li><li>Ask Staff at the VLT Office (12 Skoog Park, Vinalhaven, ME) or call (207) 863-2543</li></ul>
+                            <p><strong>HOW TO REPORT PROBLEMS:</strong></p>
+                            <ul><li>Report hazards: significant downed trees, big recent erosion, or vandalism</li><li>Contact Staff at the VLT Office (12 Skoog Park, Vinalhaven, ME) or call (207) 863-2543</li><li>Use the Report a Problem Button on the VHTrails app</li><li>Note: broken signs, seriously overgrown sections, or water hazards</li><li>Provide specific location details</li><li>Photos are helpful</li></ul>
+                            <p><strong>TRAIL MAINTENANCE:</strong></p>
+                            <ul><li>VLT, MCHT, and Town maintain different properties</li><li>Volunteer work days are available throughout the year</li><li>Report maintenance needs to the appropriate organization</li></ul>
+                            <p><strong>SEASONAL CLOSURES:</strong> Check before visiting in fall/winter. Heavy snow may make winter trails difficult or impassable. Spring mud season can be challenging.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">What are VLT, MCHT, and the Town of Vinalhaven?</button>
+                        <div class="faq-answer hidden">
+                            <p>Three organizations manage Vinalhaven's trail network:</p>
+                            <p><strong>VINALHAVEN LAND TRUST (VLT) - Teal logo</strong></p>
+                            <ul><li>Non-profit focused on land conservation</li><li>Manages the majority of Vinalhaven trails</li><li>Works to preserve natural areas for public use</li><li>Website: vinalhavenlandtrust.org</li><li>Manages properties like: A.W. Smith Preserve, Basin Preserve, Eleanor Campbell, Granite Island, and many others</li></ul>
+                            <p><strong>MAINE COAST HERITAGE TRUST (MCHT) - Blue logo</strong></p>
+                            <ul><li>Statewide land trust focused on coastal conservation</li><li>Manages several Vinalhaven properties</li><li>Protects working forests and natural habitats</li><li>Website: mcht.org</li><li>Manages properties like: Carrying Place, Huber Preserve, Lane's Island, Williams Preserve, and others</li></ul>
+                            <p><strong>TOWN OF VINALHAVEN - Gold/yellow logo</strong></p>
+                            <ul><li>Municipal government managing town properties</li><li>Maintains town parks and recreation areas like quarries and skating rink (the old ball field)</li><li>Manages public access and facilities</li><li>Website: townofvinalhaven.org</li><li>Manages properties like: Armbrust Hill Town Park, State Beach, and Armbrust Hill</li></ul>
+                            <p><strong>WHY THREE ORGANIZATIONS?</strong></p>
+                            <ul><li>Each works to preserve land through different methods</li><li>Some properties are co-owned or managed jointly</li><li>Combination provides comprehensive trail network</li><li>All welcome public use and support conservation</li></ul>
+                            <p><strong>GETTING INVOLVED:</strong></p>
+                            <ul><li>All three organizations welcome volunteers</li><li>Attend trail maintenance work days</li><li>Support through donations</li><li>Join mailing lists for updates</li><li>Participate in conservation decisions</li></ul>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Car Cruise Guide Section -->
+            <div class="resources-dropdown">
+                <button class="dropdown-header" data-target="car-cruise-section">Vinalhaven Car Cruise Guide <span class="dropdown-arrow">→</span></button>
+                <div id="car-cruise-section" class="dropdown-content hidden">
+                    <div class="resource-content">
+                        <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">A comprehensive guide to exploring Vinalhaven by car, featuring scenic drives, points of interest, and local attractions.</p>
+                        <a href="Vinalhaven Land Cruise V1.pdf" target="_blank" class="resource-link">📄 Download Car Cruise Guide PDF</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kids Scavenger Hunt Section -->
+            <div class="resources-dropdown">
+                <button class="dropdown-header" data-target="scavenger-hunt-section">All Trails Kids Scavenger Hunt <span class="dropdown-arrow">→</span></button>
+                <div id="scavenger-hunt-section" class="dropdown-content hidden">
+                    <div class="resource-content">
+                        <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">A fun scavenger hunt worksheet for kids to use while exploring Vinalhaven's trails. Print it out and bring it along!</p>
+                        <a href="vlt all trails Scavenger Hunt Worksheet.jpg" target="_blank" class="resource-link">🖨️ View &amp; Print Scavenger Hunt</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vinalhaven Historical Society Section -->
+            <div class="resources-dropdown">
+                <button class="dropdown-header" data-target="vhs-section">Vinalhaven Historical Society <span class="dropdown-arrow">→</span></button>
+                <div id="vhs-section" class="dropdown-content hidden">
+                    <div class="resource-content">
+                        <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">Many of Vinalhaven's trails pass through land shaped by the island's rich history, from granite quarrying to fishing and farming. The Vinalhaven Historical Society preserves that story through archives, artifacts, and local knowledge that bring the landscape to life as you explore it.</p>
+                        <a href="http://www.vinalhavenhistoricalsociety.org/home.html" target="_blank" class="resource-link">🏛️ Visit the Vinalhaven Historical Society</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="activities-main-nav" class="bottom-nav">
+            <button id="activities-nav-wildlife" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="activities-nav-activities" class="nav-btn active">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="activities-nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="activities-nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="activities-nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Owls View -->
+    <div id="owls-view" class="hidden">
+        <div id="owls-header">
+            <button id="owls-back-btn">&larr; Trails</button>
+            <h2>Volunteering<br>On Our Trails</h2>
+        </div>
+        <div id="owls-content">
+            <!-- Top-of-page impact strip — visible to everyone, logged in or not -->
+            <div id="owls-impact" class="owls-impact-card">
+                <span class="impact-line"><strong id="flock-owls">–</strong> OWLS resolved <strong id="flock-tasks-done">–</strong> trail issues on<br><strong>22</strong> miles of trail this year</span>
+            </div>
+
+            <!-- Auth: login button (logged-out) / profile card (logged-in) -->
+            <button id="owls-login-btn" class="become-owl-btn owl-login-top-btn" onclick="openLoginModal()">Owls Login</button>
+            <!-- Combined profile + volunteer info (logged-in only) -->
+            <div id="owls-profile" class="hidden owl-section owl-profile-section">
+                <div class="owl-profile-top">
+                    <div class="owl-avatar"><span id="owl-initials">OW</span></div>
+                    <div class="owl-profile-info">
+                        <div id="owl-profile-name" class="owl-profile-name"></div>
+                        <div id="owl-profile-email" class="owl-profile-email"></div>
+                    </div>
+                    <button class="owl-logout-btn" onclick="signOutOwl()">Log out</button>
+                </div>
+                <div class="owl-edit-row">
+                    <div class="owl-pills-stack">
+                        <span id="owl-profile-status" class="owl-profile-status-pill incomplete">Profile Incomplete</span>
+                        <span id="owl-waiver-status" class="owl-waiver-pill owl-waiver-incomplete">No Waiver</span>
+                    </div>
+                    <button id="owl-edit-profile-btn" class="owl-section-btn owl-edit-btn">Edit My Info &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Admin Tools (admin-only) — sits between profile and preferred trails -->
+            <div id="owl-admin-section" class="hidden owl-section">
+                <div class="owl-section-header">
+                    <h3 class="owl-section-title">Admin Tools</h3>
+                    <span class="owl-admin-badge">Admin</span>
+                </div>
+                <div class="owl-admin-stats owl-admin-stats-1">
+                    <div class="owl-stat owl-stat-pending">
+                        <span class="owl-stat-num" id="stat-pending">–</span>
+                        <span class="owl-stat-lbl">Awaiting Approval</span>
+                    </div>
+                </div>
+                <button id="owl-admin-issues-btn"  class="owl-section-btn">Manage All Issues &rarr;</button>
+                <button id="owl-admin-members-btn" class="owl-section-btn">Manage Members &rarr;</button>
+            </div>
+
+            <!-- Preferred Trails (logged-in only) — saves live, max 5 -->
+            <div id="owl-preferred-trails-section" class="hidden owl-section">
+                <div class="owl-section-header">
+                    <h3 class="owl-section-title">My Preferred Trails</h3>
+                    <span id="owl-pref-count" class="owl-pref-count">0 / 5</span>
+                </div>
+                <p class="owl-section-sub">Pick up to 5 trails you know best.</p>
+                <div class="pref-trail-toggles" id="pref-trail-toggles"></div>
+            </div>
+
+            <!-- Availability (logged-in only) — saves live, no submit button -->
+            <div id="owl-availability-section" class="hidden owl-section">
+                <div class="owl-section-header">
+                    <h3 class="owl-section-title">I'm generally available on…</h3>
+                </div>
+                <div class="day-toggles" id="availability-day-toggles">
+                    <button class="day-toggle" data-day="1" type="button">M</button>
+                    <button class="day-toggle" data-day="2" type="button">T</button>
+                    <button class="day-toggle" data-day="3" type="button">W</button>
+                    <button class="day-toggle" data-day="4" type="button">TH</button>
+                    <button class="day-toggle" data-day="5" type="button">F</button>
+                    <button class="day-toggle" data-day="6" type="button">SA</button>
+                    <button class="day-toggle" data-day="0" type="button">SU</button>
+                </div>
+                <div class="season-toggles" id="availability-season-toggles">
+                    <button class="season-toggle" data-season="summer"    type="button">Summer</button>
+                    <button class="season-toggle" data-season="offseason" type="button">Off-Season</button>
+                </div>
+            </div>
+
+            <!-- Logged-in: The Flock leaderboard -->
+            <div id="owls-flock" class="hidden">
+                <div class="flock-header">
+                    <div class="flock-header-row">
+                        <h3 class="flock-title">Meet Your Fellow OWLS</h3>
+                        <button id="flock-refresh-btn" class="flock-refresh-btn" type="button" aria-label="Refresh">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </button>
+                    </div>
+                    <button id="flock-legend-btn" class="flock-legend-btn" type="button">What do badges mean? →</button>
+                </div>
+                <div id="flock-legend" class="flock-legend hidden"></div>
+
+                <div id="flock-list" class="flock-list"></div>
+                <div id="flock-loading" class="tasks-loading">
+                    <div class="loading-spinner"></div><p>Gathering the Flock…</p>
+                </div>
+            </div>
+
+            <!-- Logged-out: original recruitment content -->
+            <div id="owls-logo">
+                <img src="Logos/owls-sign.png" alt="OWLS Sign" id="owls-logo-img" />
+            </div>
+            <div id="owls-text">
+                <h3 class="owls-title-main">Join the OWLS</h3>
+                <h3 class="owls-title-sub">The Vinalhaven Land Trust's</h3>
+                <h3 class="owls-title-program"><strong style="color: #3d8b6f;">Volunteer Program</strong></h3>
+
+                <p><strong>Do you love our trails so much that you want to help maintain them?</strong> The OWLS are a welcoming group that keeps our island's preserves clear, safe, and thriving. Here's the idea: Walk your favorite trails anytime, spot what needs attention, and report it. Then join us on volunteer workdays where we tackle the big stuff together: building trail features, cutting new trails, repairing erosion, and more!</p>
+
+                <p><strong>No experience? No problem.</strong> We provide all tools and gear, pair newcomers with experienced trail crew, and even offer professional chainsaw safety training for those ready to grow their skills. Every hour you give safeguards the future of trails you love. You'll build real skills, make lasting friendships, and see the difference your work makes every time you walk through. <strong>Spread your wings and join the crew!</strong></p>
+
+                <button id="become-owl-btn-el" class="become-owl-btn" onclick="window.location='mailto:tom.crisp@vinalhavenlandtrust.org?subject=Owl%20Registration%20Inquiry'">Become an OWL</button>
+            </div>
+        </div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="owls-main-nav" class="bottom-nav">
+            <button id="owls-nav-wildlife" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="owls-nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="owls-nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="owls-nav-owls" class="nav-btn active">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="owls-nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Events View -->
+    <div id="events-view" class="hidden">
+        <div id="events-header">
+            <button id="events-back-btn">&larr; Trails</button>
+            <h2>Events &<br>Programs</h2>
+        </div>
+        <div id="events-content">
+            <iframe id="events-iframe" src="https://vinalhavenlandtrust.org/calendar" title="VLT Events Calendar"></iframe>
+        </div>
+        <!-- Persistent Bottom Navigation -->
+        <nav id="events-main-nav" class="bottom-nav">
+            <button id="events-nav-wildlife" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+                <span>Wildlife</span>
+            </button>
+            <button id="events-nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="events-nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="events-nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="events-nav-events" class="nav-btn active">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Tasks View (Owls only) -->
+    <div id="tasks-view" class="hidden">
+        <div id="tasks-content">
+            <div class="tasks-topbar">
+                <button id="tasks-back-btn" class="tasks-back-link" type="button">&larr; Trails</button>
+                <h2 id="tasks-topbar-title" class="tasks-topbar-title">Tasks</h2>
+                <div class="tasks-topbar-actions">
+                    <button id="tasks-refresh-btn" class="tasks-refresh-btn" aria-label="Refresh" type="button">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <button id="tasks-callout" class="tasks-callout" type="button"></button>
+            <div class="trail-filter-bar" id="trail-filter-bar"></div>
+            <div id="tasks-feed" class="tasks-feed"></div>
+            <div id="tasks-empty" class="tasks-empty hidden"></div>
+            <div id="tasks-loading" class="tasks-loading">
+                <div class="loading-spinner"></div>
+                <p>Loading…</p>
+            </div>
+        </div>
+        <nav id="tasks-main-nav" class="bottom-nav">
+            <button id="tasks-nav-tasks" class="nav-btn active">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                <span>Tasks</span>
+            </button>
+            <button id="tasks-nav-activities" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg>
+                <span>Resources</span>
+            </button>
+            <button id="tasks-nav-map" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                <span>Map</span>
+            </button>
+            <button id="tasks-nav-owls" class="nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-80q-134 0-227-93t-93-227v-200q0-122 96-201t224-79q128 0 224 79t96 201v520H480Zm0-80h80q-19-25-29.5-55.5T520-280v-42q-10 1-20 1.5t-20 .5q-67 0-129.5-23.5T240-415v15q0 100 70 170t170 70Zm120-120q0 50 35 85t85 35v-255q-26 26-56 44.5T600-340v60ZM440-560q0-66-45-111t-109-48q-22 24-34 54t-12 65q0 89 72.5 144.5T480-400q95 0 167.5-55.5T720-600q0-35-12-65.5T674-720q-64 2-109 48t-45 112h-80Zm-128.5-11.5Q300-583 300-600t11.5-28.5Q323-640 340-640t28.5 11.5Q380-617 380-600t-11.5 28.5Q357-560 340-560t-28.5-11.5Zm280 0Q580-583 580-600t11.5-28.5Q603-640 620-640t28.5 11.5Q660-617 660-600t-11.5 28.5Q637-560 620-560t-28.5-11.5ZM370-778q34 14 62 37t48 52q20-29 47.5-52t61.5-37q-25-11-52.5-16.5T480-800q-29 0-56.5 5.5T370-778Zm430 618H520h280Zm-320 0q-100 0-170-70t-70-170q0 100 70 170t170 70h80-80Zm120-120q0 50 35 85t85 35q-50 0-85-35t-35-85ZM480-689Z"/></svg>
+                <span>Volunteer</span>
+            </button>
+            <button id="tasks-nav-events" class="nav-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 15h2v2H7zm4 0h2v2h-2z"/></svg>
+                <span>Events</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Issue Detail Panel -->
+    <div id="issue-detail-panel" class="hidden">
+        <div class="issue-form-backdrop" id="issue-detail-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <div class="issue-detail-top">
+                <div id="issue-detail-badges"></div>
+                <button class="issue-detail-close" id="issue-detail-close">&#x2715;</button>
+            </div>
+            <h3 class="issue-detail-title" id="issue-detail-title"></h3>
+            <p class="issue-detail-desc" id="issue-detail-desc"></p>
+            <div id="issue-detail-photo-frame" class="issue-detail-photo-frame">
+                <img id="issue-detail-photo" class="issue-detail-photo hidden" alt="Reported photo">
+                <div id="issue-detail-photo-empty" class="issue-detail-photo-empty">No photo available</div>
+            </div>
+            <div id="issue-detail-map" class="issue-detail-map"></div>
+            <div class="issue-detail-meta" id="issue-detail-meta"></div>
+            <div class="issue-detail-actions">
+                <div class="issue-detail-votes" id="issue-detail-votes">
+                    <button class="issue-vote-btn" id="issue-upvote-btn">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>
+                        <span id="issue-upvote-count">0</span>
+                    </button>
+                    <button class="issue-vote-btn" id="issue-downvote-btn">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v1.91l.01.01L1 14c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+                        <span id="issue-downvote-count">0</span>
+                    </button>
+                    <button class="issue-vote-btn issue-comments-btn" id="issue-comments-btn" type="button">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+                        <span id="issue-comments-count">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="issue-comments-section" class="issue-comments-section hidden">
+                <div id="issue-comments-list" class="issue-comments-list"></div>
+                <div class="issue-comment-compose">
+                    <textarea id="issue-comment-input" class="issue-comment-input" rows="2" placeholder="Add a comment…" maxlength="500"></textarea>
+                    <button id="issue-comment-send" class="issue-comment-send" type="button">Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issue Report Form Panel -->
+    <div id="issue-form-panel" class="hidden">
+        <div class="issue-form-backdrop" id="issue-form-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <h3 class="issue-form-title">Report Trail Issue</h3>
+            <div id="issue-form-trail-name" class="issue-form-trail-name"></div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="issue-category">Category</label>
+                <select id="issue-category" class="issue-form-select">
+                    <option value="">Select a category…</option>
+                    <option value="hazard">Safety Hazard</option>
+                    <option value="blowdown">Blow Down</option>
+                    <option value="invasive">Invasive Species</option>
+                    <option value="signage">Signage</option>
+                    <option value="trash">Trash / Litter</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label">Severity</label>
+                <div class="issue-severity-group" id="issue-severity-group">
+                    <button type="button" class="issue-severity-btn" data-severity="High">🔴 High</button>
+                    <button type="button" class="issue-severity-btn" data-severity="Medium">🟡 Medium</button>
+                    <button type="button" class="issue-severity-btn" data-severity="Low">🟢 Low</button>
+                </div>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="issue-title">Title</label>
+                <input type="text" id="issue-title" class="issue-form-input" placeholder="Brief description…" maxlength="80" />
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="issue-desc">Details (optional)</label>
+                <textarea id="issue-desc" class="issue-form-textarea" rows="3" placeholder="Add more context…"></textarea>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label">Photo (optional)</label>
+                <div id="issue-photo-area" class="completion-photo-area">
+                    <input type="file" id="issue-photo-input" accept="image/*">
+                    <button type="button" id="issue-photo-btn" class="completion-photo-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                        Add Photo
+                    </button>
+                    <img id="issue-photo-preview" class="completion-photo-preview hidden" alt="Preview">
+                    <button type="button" id="issue-photo-remove" class="completion-photo-remove hidden">✕ Remove photo</button>
+                </div>
+            </div>
+
+            <div id="issue-progress" class="completion-progress hidden">
+                <div class="completion-progress-bar">
+                    <div class="completion-progress-fill" id="issue-progress-fill"></div>
+                </div>
+                <p id="issue-progress-label" class="completion-progress-label">Uploading…</p>
+            </div>
+
+            <div id="issue-form-error" class="issue-form-error"></div>
+
+            <div class="issue-form-actions">
+                <button id="issue-submit-btn" class="become-owl-btn" style="margin-top:0">Submit Issue</button>
+                <button id="issue-cancel-btn" class="owl-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Completion Panel -->
+    <div id="completion-panel" class="hidden">
+        <div class="issue-form-backdrop" id="completion-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <h3 class="issue-form-title">Mark this task resolved</h3>
+            <div id="completion-task-name" class="issue-form-trail-name"></div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label">Photo Evidence (optional)</label>
+                <div id="completion-photo-area" class="completion-photo-area">
+                    <input type="file" id="completion-photo-input" accept="image/*">
+                    <button type="button" id="completion-photo-btn" class="completion-photo-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                        Add Photo
+                    </button>
+                    <img id="completion-photo-preview" class="completion-photo-preview hidden" alt="Preview">
+                    <button type="button" id="completion-photo-remove" class="completion-photo-remove hidden">✕ Remove photo</button>
+                </div>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="completion-note">Work Notes (optional)</label>
+                <textarea id="completion-note" class="issue-form-textarea" rows="3" placeholder="Describe what you did…"></textarea>
+            </div>
+
+            <div id="completion-progress" class="completion-progress hidden">
+                <div class="completion-progress-bar">
+                    <div class="completion-progress-fill" id="completion-progress-fill"></div>
+                </div>
+                <p id="completion-progress-label" class="completion-progress-label">Uploading…</p>
+            </div>
+
+            <div id="completion-error" class="issue-form-error"></div>
+
+            <div class="issue-form-actions">
+                <button id="completion-submit-btn" class="become-owl-btn" style="margin-top:0">Mark Resolved</button>
+                <button id="completion-cancel-btn" class="owl-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Profile / Questionnaire Panel -->
+    <div id="member-profile-panel" class="hidden">
+        <div class="issue-form-backdrop" id="member-profile-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <h3 class="issue-form-title">My Volunteer Information</h3>
+            <p class="issue-form-trail-name">Help us reach you and keep you safe on the trails.</p>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-fullname">Full Legal Name</label>
+                <input type="text" id="member-fullname" class="issue-form-input" autocomplete="name">
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-phone">Phone Number</label>
+                <input type="tel" id="member-phone" class="issue-form-input" autocomplete="tel" inputmode="tel">
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-address">Mailing Address</label>
+                <textarea id="member-address" class="issue-form-textarea" rows="2" autocomplete="street-address"></textarea>
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-dob">Date of Birth</label>
+                <input type="date" id="member-dob" class="issue-form-input">
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label">Emergency Contact</label>
+                <input type="text" id="member-ec-name"     class="issue-form-input" placeholder="Name"         style="margin-bottom:6px">
+                <input type="tel"  id="member-ec-phone"    class="issue-form-input" placeholder="Phone number" style="margin-bottom:6px" inputmode="tel">
+                <input type="text" id="member-ec-relation" class="issue-form-input" placeholder="Relationship (parent, spouse, etc.)">
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-experience">Trail Work Experience</label>
+                <select id="member-experience" class="issue-form-select">
+                    <option value="">Select…</option>
+                    <option value="beginner">New to trail work</option>
+                    <option value="intermediate">Some experience</option>
+                    <option value="experienced">Experienced trail crew</option>
+                </select>
+            </div>
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="member-availability">About Me <span class="issue-form-label-hint">(favorite trail, what brought you to the OWLS, special skills, dietary restrictions…)</span></label>
+                <textarea id="member-availability" class="issue-form-textarea" rows="3" placeholder="Tell other Owls a little about yourself…"></textarea>
+            </div>
+
+            <div class="member-waiver-box">
+                <label class="member-waiver-label">
+                    <input type="checkbox" id="member-waiver-check">
+                    <span>I have signed the volunteer liability waiver and code of conduct (paper copy on file with VLT).</span>
+                </label>
+            </div>
+
+            <div class="member-waiver-box">
+                <label class="member-waiver-label">
+                    <input type="checkbox" id="member-chainsaw-check">
+                    <span>🪚 I have been chainsaw trained.</span>
+                </label>
+            </div>
+
+            <div id="member-profile-error" class="issue-form-error"></div>
+
+            <div class="issue-form-actions">
+                <button id="member-profile-save-btn"   class="become-owl-btn" style="margin-top:0">Save My Info</button>
+                <button id="member-profile-cancel-btn" class="owl-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin: Manage Issues Panel — mirrors Tasks page patterns with admin chrome -->
+    <div id="admin-issues-panel" class="hidden admin-page">
+        <div class="admin-topbar">
+            <button id="admin-issues-back-btn" class="tasks-back-link" type="button">&larr; Back</button>
+            <h2 class="tasks-topbar-title">
+                Manage Issues
+                <span class="admin-page-badge">Admin</span>
+            </h2>
+            <div class="tasks-topbar-actions">
+                <button id="admin-issues-refresh-btn" class="tasks-refresh-btn" aria-label="Refresh" type="button">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+            </div>
+        </div>
+        <button id="admin-issues-callout" class="tasks-callout admin-callout" type="button"></button>
+        <div class="trail-filter-bar" id="admin-trail-filter-bar"></div>
+        <div class="admin-status-bar" id="admin-status-bar">
+            <button class="admin-status-pill active" data-status="all">All</button>
+            <button class="admin-status-pill" data-status="pending_approval">Pending</button>
+            <button class="admin-status-pill" data-status="open">Open</button>
+            <button class="admin-status-pill" data-status="resolved">Resolved</button>
+            <button class="admin-status-pill" data-status="expired">Expired</button>
+        </div>
+        <div id="admin-sweep-row" class="admin-sweep-row hidden">
+            <button id="admin-sweep-expired-btn" class="admin-sweep-btn" type="button">🧹 Sweep Expired</button>
+        </div>
+        <div id="admin-issues-list" class="admin-issues-feed"></div>
+        <div id="admin-issues-empty" class="admin-empty hidden">No issues match this filter.</div>
+        <div id="admin-issues-loading" class="tasks-loading">
+            <div class="loading-spinner"></div><p>Loading…</p>
+        </div>
+    </div>
+
+    <!-- Admin: Manage Members Panel -->
+    <div id="admin-members-panel" class="hidden">
+        <div class="admin-panel-header">
+            <button id="admin-members-back-btn" class="map-back-btn">&larr; Back</button>
+            <h2 class="admin-panel-title">Members</h2>
+        </div>
+        <div id="admin-members-list" class="admin-list"></div>
+        <div id="admin-members-empty"   class="admin-empty hidden">No members yet.</div>
+        <div id="admin-members-loading" class="tasks-loading">
+            <div class="loading-spinner"></div><p>Loading…</p>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog (used for deletes / destructive admin actions) -->
+    <div id="confirm-dialog" class="hidden">
+        <div class="owl-modal-overlay" id="confirm-dialog-overlay"></div>
+        <div class="owl-modal-card">
+            <h2 class="owl-modal-title" id="confirm-dialog-title">Confirm</h2>
+            <p class="owl-modal-sub"   id="confirm-dialog-msg"></p>
+            <button id="confirm-dialog-yes" class="become-owl-btn" style="margin-top:0;background:#dc2626">Yes, do it</button>
+            <button id="confirm-dialog-no"  class="owl-modal-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Owls Login Modal -->
+    <div id="owl-login-modal" class="hidden">
+        <div class="owl-modal-overlay" onclick="closeLoginModal()"></div>
+        <div class="owl-modal-card">
+            <h2 class="owl-modal-title">Owls Login</h2>
+            <p class="owl-modal-sub">Sign in with your Owl credentials</p>
+            <input id="owl-login-email" type="email" class="owl-modal-input" placeholder="Email address" autocomplete="email" />
+            <input id="owl-login-password" type="password" class="owl-modal-input" placeholder="Password" autocomplete="current-password" />
+            <div id="owl-login-error" class="owl-login-error"></div>
+            <button id="owl-login-submit" class="become-owl-btn" style="margin-top:0" onclick="signInOwl()">Sign In</button>
+            <button class="owl-modal-cancel" onclick="closeLoginModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
+    <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
+    <script src="js/wildlife-data.js"></script>
+    <script src="js/app.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="js/owls.js"></script>
+</body>
+</html>

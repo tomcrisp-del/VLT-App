@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document id="1">
+        <Style id="6">
+            <LineStyle id="7">
+                <color>ffBC26A7</color>
+                <colorMode>normal</colorMode>
+                <width>1</width>
+            </LineStyle>
+            <PolyStyle id="8">
+                <color>ffBC26A7</color>
+                <colorMode>normal</colorMode>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+        <Placemark id="3">
+            <name>Middle Mountain Boundary</name>
+            <description/>
+            <styleUrl>#6</styleUrl>
+            <Polygon id="2">
+                <extrude>0</extrude>
+                <outerBoundaryIs>
+                    <LinearRing id="4">
+                        <coordinates>-68.88455446984575,44.1061966357106,0.0 -68.8858988331363,44.106632205976894,0.0 -68.88722680175248,44.10227635888191,0.0 -68.89080039018805,44.10322803046145,0.0 -68.89199720140918,44.099707857290326,0.0 -68.88079724266937,44.1012830863765,0.0 -68.88273120715031,44.10528707801461,0.0 -68.88315751494702,44.10564721275526,0.0 -68.88362979711334,44.10596232885382,0.0 -68.88455446984575,44.1061966357106,0.0</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>
+    </Document>
+</kml>
