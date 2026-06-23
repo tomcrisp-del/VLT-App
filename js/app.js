@@ -739,7 +739,8 @@ async function addBoundary(targetMap, prop, opts = {}) {
 
 // Add adjacent property layers (dimmed) to a map — does not affect fitBounds
 async function loadAdjacentLayers(map, adjProp) {
-    // Boundary at reduced opacity
+    // Boundary at reduced opacity. interactive:false so these never intercept
+    // pin-drop taps on the detail map (the fill would otherwise swallow clicks).
     if (adjProp.boundary) {
         try {
             const geoJson = await loadBoundary(adjProp);
@@ -747,6 +748,7 @@ async function loadAdjacentLayers(map, adjProp) {
                 const s = boundaryStyle(adjProp);
                 L.geoJSON(geoJson, {
                     style: { ...s, fillOpacity: s.fillOpacity * 0.35, opacity: s.opacity * 0.4 },
+                    interactive: false,
                 }).addTo(map);
             }
         } catch (e) {}
@@ -757,13 +759,13 @@ async function loadAdjacentLayers(map, adjProp) {
     if (adjProp.trail) {
         try {
             const geoJson = await loadKml(propPath(adjProp, adjProp.trail));
-            L.geoJSON(geoJson, { style: adjTrailStyle, filter: adjFilter }).addTo(map);
+            L.geoJSON(geoJson, { style: adjTrailStyle, filter: adjFilter, interactive: false }).addTo(map);
         } catch (e) {}
     }
     for (const conn of (adjProp.connectors || [])) {
         try {
             const geoJson = await loadKml(propPath(adjProp, conn));
-            L.geoJSON(geoJson, { style: adjTrailStyle, filter: adjFilter }).addTo(map);
+            L.geoJSON(geoJson, { style: adjTrailStyle, filter: adjFilter, interactive: false }).addTo(map);
         } catch (e) {}
     }
 }
