@@ -1323,9 +1323,11 @@ function renderTrailGrouped() {
 
     const uid = currentOwl?.uid;
 
-    // Resolvable pool: open + legacy claimed/review + your own pending submissions
+    // Open work pool. Once a volunteer marks an issue Fixed it becomes
+    // 'pending_review' and leaves the Tasks page entirely — it then lives only
+    // in the admin panel until an admin marks it Resolved.
     const fullPool = allTasks.filter(t => {
-        if (t.status === 'open' || t.status === 'claimed' || t.status === 'pending_review') return true;
+        if (t.status === 'open' || t.status === 'claimed') return true;
         if (t.status === 'pending_approval') return t.reportedBy?.uid === uid;
         return false;
     });
@@ -1538,7 +1540,7 @@ function buildTaskCard(task, opts = {}) {
     } else {
         actionHTML = `
             <button class="task-info-btn"    data-id="${task.id}" data-action="info">Show more info</button>
-            <button class="task-resolve-btn" data-id="${task.id}" data-action="resolve">✓ Mark Resolved</button>`;
+            <button class="task-resolve-btn" data-id="${task.id}" data-action="resolve">✓ Mark as Fixed</button>`;
     }
 
     const upvotes    = task.upvotes?.length || 0;
@@ -1565,6 +1567,7 @@ function buildTaskCard(task, opts = {}) {
             </div>
             <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
             ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
+            ${task.reportedPhotoUrl ? `<img class="task-card-photo" src="${task.reportedPhotoUrl}" alt="Reported photo" loading="lazy">` : ''}
             <div class="task-card-meta-line">
                 ${showTrail && task.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(task.trailName))}</span>` : ''}
                 ${reportedBy ? `<span class="task-card-by">Reported by ${escapeHtml(reportedBy)}</span>` : ''}
@@ -1575,6 +1578,7 @@ function buildTaskCard(task, opts = {}) {
 
     card.querySelector('[data-action="resolve"]')?.addEventListener('click', () => openCompletionSheet(task));
     card.querySelector('[data-action="info"]')?.addEventListener('click',    () => openIssueDetail(task, task.id));
+    card.querySelector('.task-card-photo')?.addEventListener('click',        () => openIssueDetail(task, task.id));
     return card;
 }
 
@@ -1647,7 +1651,7 @@ function openCompletionSheet(task) {
     document.getElementById('completion-progress').classList.add('hidden');
     document.getElementById('completion-progress-fill').style.width  = '0%';
     document.getElementById('completion-submit-btn').disabled        = false;
-    document.getElementById('completion-submit-btn').textContent     = 'Mark Resolved';
+    document.getElementById('completion-submit-btn').textContent     = 'Mark as Fixed';
 
     document.getElementById('completion-panel').classList.remove('hidden');
 }
@@ -1776,7 +1780,7 @@ async function submitCompletion() {
             errorEl.textContent   = 'Photo upload failed — try again or remove the photo.';
             progressEl.classList.add('hidden');
             submitBtn.disabled    = false;
-            submitBtn.textContent = 'Mark Resolved';
+            submitBtn.textContent = 'Mark as Fixed';
             return;
         }
     }
@@ -1789,34 +1793,35 @@ async function submitCompletion() {
             completedAt: new Date(),   // arrayUnion can't take serverTimestamp
             note:        note || null,
             photoUrl:    photoUrl,
-            outcome:     'resolved',
+            outcome:     'fixed',
         };
 
-        // Direct resolution — no admin review queue, trust-based.
+        // Volunteer marks it Fixed → goes to the admin panel for final
+        // resolution. We record who/when/photo/note as review evidence, but
+        // do NOT set resolvedAt/resolvedBy — that's the admin's "Mark Resolved".
         const update = {
-            status:             'resolved',
+            status:             'pending_review',
             completedBy:        { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
             completedAt:        firebase.firestore.FieldValue.serverTimestamp(),
-            resolvedAt:         firebase.firestore.FieldValue.serverTimestamp(),
-            resolvedBy:         { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
             completionNote:     note || null,
             completionPhotoUrl: photoUrl,
             attempts:           firebase.firestore.FieldValue.arrayUnion(attempt),
         };
         await db.collection('issues').doc(issueId).update(update);
 
-        // Drop from local cache — resolved tasks aren't shown in the open feed
+        // Drop from local cache — once Fixed it leaves the Tasks page entirely
+        // and lives only in the admin panel until an admin resolves it.
         const idx = allTasks.findIndex(t => t.id === issueId);
         if (idx !== -1) allTasks.splice(idx, 1);
 
         closeCompletionSheet();
         renderTasks();
-        showIssueToast('Marked resolved — thanks for the help! ✓');
+        showIssueToast('Marked as fixed — sent to admin for review ✓');
     } catch (err) {
         console.error('submitCompletion error:', err);
         errorEl.textContent   = 'Could not save — check your connection and try again.';
         submitBtn.disabled    = false;
-        submitBtn.textContent = 'Mark Resolved';
+        submitBtn.textContent = 'Mark as Fixed';
     }
 }
 
@@ -2428,23 +2433,29 @@ function buildAdminIssueCard(issue) {
         if (note || photo) reviewBlock = `<div class="admin-issue-review">${note}${photo}</div>`;
     }
 
-    // Per-status admin actions
+    // Per-status admin actions. "Edit" is available on every issue.
+    const editBtn = `<button class="admin-edit-btn" data-id="${issue.id}">Edit</button>`;
     let actions;
     if (isPendingApproval) {
         actions = `
             <button class="admin-approve-btn" data-id="${issue.id}">Approve</button>
+            ${editBtn}
             <button class="admin-delete-btn"  data-id="${issue.id}">Reject &amp; Delete</button>`;
     } else if (isPendingReview) {
         actions = `
             <button class="admin-resolve-btn" data-id="${issue.id}">Mark Resolved</button>
+            ${editBtn}
             <button class="admin-reject-btn"  data-id="${issue.id}">Send Back</button>
             <button class="admin-delete-btn"  data-id="${issue.id}">Delete</button>`;
     } else if (!isResolved) {
         actions = `
             <button class="admin-resolve-btn" data-id="${issue.id}">Mark Resolved</button>
+            ${editBtn}
             <button class="admin-delete-btn"  data-id="${issue.id}">Delete</button>`;
     } else {
-        actions = `<button class="admin-delete-btn" data-id="${issue.id}">Delete</button>`;
+        actions = `
+            ${editBtn}
+            <button class="admin-delete-btn" data-id="${issue.id}">Delete</button>`;
     }
 
     card.innerHTML = `
@@ -2469,6 +2480,7 @@ function buildAdminIssueCard(issue) {
     card.querySelector('.admin-approve-btn')?.addEventListener('click', e => approveSubmission(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-resolve-btn')?.addEventListener('click', e => adminResolveIssue(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-reject-btn')?.addEventListener('click',  e => rejectTask(e.currentTarget.dataset.id, e.currentTarget));
+    card.querySelector('.admin-edit-btn')?.addEventListener('click',    e => openAdminEdit(e.currentTarget.dataset.id));
     card.querySelector('.admin-delete-btn').addEventListener('click',   e => adminDeleteIssue(e.currentTarget.dataset.id, e.currentTarget));
     return card;
 }
@@ -2511,6 +2523,81 @@ async function adminDeleteIssue(issueId, btn) {
         showIssueToast('Could not delete — check permissions.');
     }
 }
+
+// ── Admin: edit an issue (title / category / severity / description) ──
+let adminEditId       = null;
+let adminEditSeverity = null;
+
+function openAdminEdit(issueId) {
+    if (!currentOwl?.isAdmin) return;
+    const issue = allAdminIssues.find(i => i.id === issueId);
+    if (!issue) return;
+    adminEditId       = issueId;
+    adminEditSeverity = issue.severity || null;
+
+    document.getElementById('admin-edit-trail-name').textContent =
+        trailLabel(issue.trailName || '') || '';
+    document.getElementById('admin-edit-title').value    = issue.title || '';
+    document.getElementById('admin-edit-category').value = issue.category || 'other';
+    document.getElementById('admin-edit-desc').value     = issue.description || '';
+    document.getElementById('admin-edit-error').textContent = '';
+
+    // Reflect the current severity selection on the buttons.
+    document.querySelectorAll('#admin-edit-severity-group .issue-severity-btn').forEach(b => {
+        b.className = 'issue-severity-btn';
+        if (b.dataset.severity === adminEditSeverity) b.classList.add('selected-' + adminEditSeverity);
+    });
+
+    const saveBtn = document.getElementById('admin-edit-save-btn');
+    saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
+    document.getElementById('admin-edit-panel').classList.remove('hidden');
+}
+
+function closeAdminEdit() {
+    document.getElementById('admin-edit-panel').classList.add('hidden');
+    adminEditId = null;
+}
+
+async function saveAdminEdit() {
+    if (!currentOwl?.isAdmin || !adminEditId) return;
+    const errorEl = document.getElementById('admin-edit-error');
+    const saveBtn = document.getElementById('admin-edit-save-btn');
+    const title   = document.getElementById('admin-edit-title').value.trim();
+    const category = document.getElementById('admin-edit-category').value;
+    const desc    = document.getElementById('admin-edit-desc').value.trim();
+
+    if (!title)             { errorEl.textContent = 'Title can’t be empty.'; return; }
+    if (!adminEditSeverity) { errorEl.textContent = 'Please choose a severity.'; return; }
+
+    errorEl.textContent = '';
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+
+    const changes = { title, category, severity: adminEditSeverity, description: desc || null };
+    try {
+        await db.collection('issues').doc(adminEditId).update(changes);
+        const issue = allAdminIssues.find(i => i.id === adminEditId);
+        if (issue) Object.assign(issue, changes);
+        renderAdminIssues();
+        closeAdminEdit();
+        showIssueToast('Issue updated ✓');
+    } catch (err) {
+        console.error('saveAdminEdit error:', err);
+        errorEl.textContent = 'Could not save — please try again.';
+        saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
+    }
+}
+
+// Severity buttons inside the edit sheet (scoped so they don't touch the report form).
+document.getElementById('admin-edit-severity-group').addEventListener('click', (e) => {
+    const btn = e.target.closest('.issue-severity-btn');
+    if (!btn) return;
+    e.currentTarget.querySelectorAll('.issue-severity-btn').forEach(b => (b.className = 'issue-severity-btn'));
+    adminEditSeverity = btn.dataset.severity;
+    btn.classList.add('selected-' + adminEditSeverity);
+});
+document.getElementById('admin-edit-save-btn').addEventListener('click', saveAdminEdit);
+document.getElementById('admin-edit-cancel-btn').addEventListener('click', closeAdminEdit);
+document.getElementById('admin-edit-backdrop').addEventListener('click', closeAdminEdit);
 
 document.getElementById('owl-admin-issues-btn').addEventListener('click', openAdminIssuesPanel);
 document.getElementById('admin-issues-back-btn').addEventListener('click', () => {

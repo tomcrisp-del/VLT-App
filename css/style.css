@@ -3654,6 +3654,16 @@ header {
     margin-bottom: 6px;
     display: block;
 }
+/* Reported-issue photo shown on a task card */
+.task-card-photo {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin: 2px 0 8px;
+    display: block;
+    cursor: pointer;
+}
 .task-review-actions {
     display: flex;
     gap: 8px;
@@ -4212,8 +4222,13 @@ header {
 }
 .admin-issue-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
+}
+.admin-issue-actions .admin-edit-btn {
+    border-color: #3d8b6f;
+    color: #1a3d3d;
 }
 .admin-issue-actions button {
     flex: 1;

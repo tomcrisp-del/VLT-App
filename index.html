@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.7">
+    <link rel="stylesheet" href="css/style.css?v=2.8">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -832,7 +832,7 @@
         <div class="issue-form-backdrop" id="completion-backdrop"></div>
         <div class="issue-form-sheet">
             <div class="issue-form-handle"></div>
-            <h3 class="issue-form-title">Mark this task resolved</h3>
+            <h3 class="issue-form-title">Mark this task as fixed</h3>
             <div id="completion-task-name" class="issue-form-trail-name"></div>
 
             <div class="issue-form-field">
@@ -863,8 +863,56 @@
             <div id="completion-error" class="issue-form-error"></div>
 
             <div class="issue-form-actions">
-                <button id="completion-submit-btn" class="become-owl-btn" style="margin-top:0">Mark Resolved</button>
+                <button id="completion-submit-btn" class="become-owl-btn" style="margin-top:0">Mark as Fixed</button>
                 <button id="completion-cancel-btn" class="owl-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin: Edit Issue Panel -->
+    <div id="admin-edit-panel" class="hidden">
+        <div class="issue-form-backdrop" id="admin-edit-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <h3 class="issue-form-title">Edit Issue</h3>
+            <div id="admin-edit-trail-name" class="issue-form-trail-name"></div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="admin-edit-title">Title</label>
+                <input type="text" id="admin-edit-title" class="issue-form-input" maxlength="80">
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="admin-edit-category">Category</label>
+                <select id="admin-edit-category" class="issue-form-select">
+                    <option value="hazard">Safety Hazard</option>
+                    <option value="blowdown">Blow Down</option>
+                    <option value="invasive">Invasive Species</option>
+                    <option value="signage">Signage</option>
+                    <option value="trash">Trash / Litter</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label">Severity</label>
+                <div class="issue-severity-group" id="admin-edit-severity-group">
+                    <button type="button" class="issue-severity-btn" data-severity="High">🔴 High</button>
+                    <button type="button" class="issue-severity-btn" data-severity="Medium">🟡 Medium</button>
+                    <button type="button" class="issue-severity-btn" data-severity="Low">🟢 Low</button>
+                </div>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="admin-edit-desc">Description</label>
+                <textarea id="admin-edit-desc" class="issue-form-textarea" rows="3"></textarea>
+            </div>
+
+            <div id="admin-edit-error" class="issue-form-error"></div>
+
+            <div class="issue-form-actions">
+                <button id="admin-edit-save-btn" class="become-owl-btn" style="margin-top:0">Save Changes</button>
+                <button id="admin-edit-cancel-btn" class="owl-modal-cancel">Cancel</button>
             </div>
         </div>
     </div>
@@ -965,6 +1013,7 @@
             <button class="admin-status-pill active" data-status="all">All</button>
             <button class="admin-status-pill" data-status="pending_approval">Pending</button>
             <button class="admin-status-pill" data-status="open">Open</button>
+            <button class="admin-status-pill" data-status="pending_review">Fixed</button>
             <button class="admin-status-pill" data-status="resolved">Resolved</button>
             <button class="admin-status-pill" data-status="expired">Expired</button>
         </div>
@@ -1045,12 +1094,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.7"></script>
-    <script src="js/app.js?v=2.7"></script>
+    <script src="js/wildlife-data.js?v=2.8"></script>
+    <script src="js/app.js?v=2.8"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.7"></script>
+    <script src="js/owls.js?v=2.8"></script>
 </body>
 </html>
