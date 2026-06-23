@@ -1,6 +1,13 @@
-# Always revalidate the HTML so phones pick up new deploys immediately.
-# The CSS/JS are cache-busted with a ?v= query string in index.html, so
-# they can be cached safely — only index.html must never go stale.
+# ── Caching strategy ────────────────────────────────────────────────
+# HTML is always revalidated so phones pick up new deploys immediately.
+# Everything the HTML points at is cached for speed:
+#   • CSS/JS carry a ?v= query string, so bumping it forces a fresh fetch
+#     regardless of cache → safe to cache for a year.
+#   • Photos / trail (KML) / PDFs change rarely and are referenced by plain
+#     filename, so we cache them for 1 day: fast repeat loads, and any swap
+#     using the same filename refreshes within a day on its own.
+
+# index.html — never go stale.
 [[headers]]
   for = "/*.html"
   [headers.values]
@@ -10,3 +17,45 @@
   for = "/"
   [headers.values]
     Cache-Control = "no-cache, must-revalidate"
+
+# Versioned code — cache hard (the ?v= query busts it on change).
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+# Trail photos, KML overlays, and PDFs — cache 1 day for fast loads.
+[[headers]]
+  for = "/Properties/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/Logos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.pdf"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
