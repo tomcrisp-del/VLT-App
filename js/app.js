@@ -4,6 +4,12 @@
 // Each property's folder name is the authoritative name.
 // "folder" must match the exact folder name inside Properties/.
 
+// App version — BUMP THIS on every change you deploy. It's shown at the
+// bottom of the Resources page so you can confirm the phone loaded the
+// latest code (also keep the ?v= query on the script tags in index.html
+// in sync to defeat browser caching).
+const APP_VERSION = "1.0.1";
+
 const properties = [
     {
         name: "A.W. Smith Preserve\n(Fox Rocks)",
@@ -1013,6 +1019,10 @@ properties.forEach((prop) => {
 
     gridEl.appendChild(card);
 });
+
+// Stamp the version onto the Resources page so the loaded build is verifiable.
+const versionEl = document.getElementById("app-version");
+if (versionEl) versionEl.textContent = "Version " + APP_VERSION;
 
 // ============================================================
 // Property Detail View (split: info top, map bottom)

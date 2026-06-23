@@ -1,0 +1,12 @@
+# Always revalidate the HTML so phones pick up new deploys immediately.
+# The CSS/JS are cache-busted with a ?v= query string in index.html, so
+# they can be cached safely — only index.html must never go stale.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
