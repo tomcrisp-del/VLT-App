@@ -698,8 +698,11 @@ async function loadBoundary(prop) {
 }
 
 // Add boundary for a single property to a map
-async function addBoundary(targetMap, prop) {
+async function addBoundary(targetMap, prop, opts = {}) {
     if (!prop.boundary) return null;
+    // When `opts.interactive === false`, the boundary is purely decorative and
+    // map clicks pass through it (needed for pin-drop mode on the detail map).
+    const interactive = opts.interactive !== false;
     const group = L.layerGroup().addTo(targetMap);
     try {
         const b = prop.boundary;
@@ -714,18 +717,18 @@ async function addBoundary(targetMap, prop) {
                     if (parcelFile.includes("little-tip-toe")) {
                         style = boundaryStyle({ owner: "town" }); // gold for town areas
                     }
-                    L.geoJSON(geoJson, { style: style })
-                        .bindPopup(prop.name.replace(/\n/g, " "))
-                        .addTo(group);
+                    const layer = L.geoJSON(geoJson, { style, interactive });
+                    if (interactive) layer.bindPopup(prop.name.replace(/\n/g, " "));
+                    layer.addTo(group);
                 }
             }
         } else {
             // Single file boundary (original behavior)
             const geoJson = await loadBoundary(prop);
             if (geoJson) {
-                L.geoJSON(geoJson, { style: boundaryStyle(prop) })
-                    .bindPopup(prop.name.replace(/\n/g, " "))
-                    .addTo(group);
+                const layer = L.geoJSON(geoJson, { style: boundaryStyle(prop), interactive });
+                if (interactive) layer.bindPopup(prop.name.replace(/\n/g, " "));
+                layer.addTo(group);
             }
         }
     } catch (err) {
@@ -1905,13 +1908,17 @@ async function showProperty(prop) {
     if (typeof window.onDetailMapReady === 'function') window.onDetailMapReady(detailMap, prop);
 
     // ── Load layers: boundary → trail → parking ──
-    await addBoundary(detailMap, prop);
+    // interactive:false → tapping the boundary doesn't intercept map clicks,
+    // which is essential for pin-drop mode (touch needs to reach the map's
+    // click handler, not the polygon's).
+    await addBoundary(detailMap, prop, { interactive: false });
 
     try {
         const geoJson = await loadKml(propPath(prop, prop.trail));
         const layer = L.geoJSON(geoJson, {
             style: { color: "#ff4444", weight: 4, opacity: 0.95 },
             filter: (f) => f.geometry.type !== "Point",
+            interactive: false,    // same reason — let map clicks through
         }).addTo(detailMap);
 
         let bounds = layer.getBounds();
@@ -1922,6 +1929,7 @@ async function showProperty(prop) {
                 const connLayer = L.geoJSON(connGeoJson, {
                     style: { color: "#ff4444", weight: 4, opacity: 0.95 },
                     filter: (f) => f.geometry.type !== "Point",
+                    interactive: false,
                 }).addTo(detailMap);
                 bounds.extend(connLayer.getBounds());
             } catch (err) {
