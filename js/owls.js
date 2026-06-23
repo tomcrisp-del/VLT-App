@@ -293,6 +293,11 @@ const CANCEL_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="curren
 
 // Called by app.js once the detail map is initialised
 window.onDetailMapReady = (map, prop) => {
+    // The #detail-map div is reused across trails, so any FAB/banner we
+    // manually appended for a PREVIOUS trail survives map teardown. Clear
+    // them first — otherwise an MCHT trail inherits the last trail's button.
+    map.getContainer().querySelectorAll('.issue-report-fab, .pin-drop-banner').forEach(el => el.remove());
+
     // MCHT properties opt out of the VLT volunteer task system entirely —
     // no FAB, no pins, no anything (they're managed by Maine Coast Heritage Trust).
     if (prop?.owner === 'mcht') return;
@@ -388,6 +393,10 @@ window.onDetailMapLeaving = () => {
     cancelPinDrop();
     closeIssueFormSilently();
     closeIssueDetail();
+    // Remove the DOM nodes, not just the references — the map container is
+    // reused, so a lingering button would show up on the next trail.
+    if (issueReportBtnEl) issueReportBtnEl.remove();
+    if (pinDropBannerEl)  pinDropBannerEl.remove();
     issueMarkers         = [];    // markers are removed with the map
     issueLayerGroup      = null;
     maintenanceVisible   = true;
