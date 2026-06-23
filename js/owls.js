@@ -40,6 +40,27 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
 
 let currentOwl = null; // { uid, email, displayName, isAdmin, joinedAt }
 
+// ── PIN login ───────────────────────────────────────────────
+// Firebase requires passwords of 6+ chars, so a 4-digit PIN is expanded
+// into a real password by appending this fixed, app-wide suffix. Volunteers
+// only ever see/type the 4 digits — the suffix is invisible to them.
+const PIN_SUFFIX = '#vltOwls2024';
+function pinToPassword(pin) { return String(pin) + PIN_SUFFIX; }
+
+// A publicly-readable roster of {displayName, email} powers the login name
+// picker (it must load BEFORE anyone is signed in). We refresh a user's
+// roster entry every time they sign in, so the list stays current on its own.
+async function upsertRoster(user, displayName) {
+    try {
+        await db.collection('roster').doc(user.uid).set({
+            displayName: displayName || user.email.split('@')[0],
+            email:       user.email,
+        }, { merge: true });
+    } catch (e) {
+        console.warn('roster upsert:', e.message);
+    }
+}
+
 // ── Auth State ──────────────────────────────────────────────
 auth.onAuthStateChanged(async (user) => {
     if (user) {
@@ -61,6 +82,8 @@ auth.onAuthStateChanged(async (user) => {
         } catch (e) {
             currentOwl = { uid: user.uid, email: user.email, displayName: user.email.split('@')[0], isAdmin: false };
         }
+        // Keep the public login roster in sync with this user's current name.
+        upsertRoster(user, currentOwl.displayName);
         updateOwlsView(true);
     } else {
         currentOwl = null;
@@ -107,6 +130,16 @@ function updateOwlsView(loggedIn) {
             renderPreferredTrailToggles();
         }
 
+        // PIN section: visible for all logged-in users
+        const pinSection = document.getElementById('owl-pin-section');
+        if (pinSection) {
+            pinSection.classList.remove('hidden');
+            const pinInput = document.getElementById('owl-set-pin-input');
+            const pinMsg   = document.getElementById('owl-set-pin-msg');
+            if (pinInput) pinInput.value = '';
+            if (pinMsg)   { pinMsg.textContent = ''; pinMsg.className = 'owl-pin-msg'; }
+        }
+
         // Hide recruitment content, show The Flock leaderboard.
         // (Impact strip is shown to everyone — it's outside this block.)
         const owlsLogo   = document.getElementById('owls-logo');
@@ -151,6 +184,8 @@ function updateOwlsView(loggedIn) {
         if (availSection) availSection.classList.add('hidden');
         const prefSection = document.getElementById('owl-preferred-trails-section');
         if (prefSection) prefSection.classList.add('hidden');
+        const pinSection = document.getElementById('owl-pin-section');
+        if (pinSection) pinSection.classList.add('hidden');
 
         // Show recruitment content, hide The Flock.
         // (Impact strip stays visible — it's a public stat now.)
@@ -179,9 +214,19 @@ function updateOwlsView(loggedIn) {
 }
 
 // ── Modal Controls ───────────────────────────────────────────
+let pendingLoginEmail = null;  // email of the account picked in the name list
+
+function showLoginStep(step) {
+    ['pick', 'pin', 'email'].forEach(s => {
+        const el = document.getElementById('owl-login-step-' + s);
+        if (el) el.classList.toggle('hidden', s !== step);
+    });
+}
+
 function openLoginModal() {
     document.getElementById('owl-login-modal').classList.remove('hidden');
-    setTimeout(() => document.getElementById('owl-login-email').focus(), 60);
+    showLoginStep('pick');
+    loadAccountList();
 }
 
 function closeLoginModal() {
@@ -189,9 +234,85 @@ function closeLoginModal() {
     document.getElementById('owl-login-error').textContent = '';
     document.getElementById('owl-login-email').value       = '';
     document.getElementById('owl-login-password').value    = '';
+    const pinInput = document.getElementById('owl-login-pin');
+    const pinErr   = document.getElementById('owl-pin-error');
+    if (pinInput) pinInput.value = '';
+    if (pinErr)   pinErr.textContent = '';
+    pendingLoginEmail = null;
     const btn = document.getElementById('owl-login-submit');
     btn.disabled    = false;
     btn.textContent = 'Sign In';
+}
+
+// Step navigation
+function backToPicker()   { showLoginStep('pick'); }
+function showEmailLogin() {
+    showLoginStep('email');
+    setTimeout(() => document.getElementById('owl-login-email').focus(), 60);
+}
+
+// Build the name list from the public roster.
+async function loadAccountList() {
+    const listEl = document.getElementById('owl-account-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="owl-account-loading">Loading…</p>';
+    try {
+        const snap = await db.collection('roster').orderBy('displayName').get();
+        if (snap.empty) {
+            listEl.innerHTML = '<p class="owl-account-empty">No accounts yet. Use “Sign in with email instead.”</p>';
+            return;
+        }
+        listEl.innerHTML = '';
+        snap.forEach(doc => {
+            const d     = doc.data();
+            const name  = d.displayName || d.email;
+            const init  = name.trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || 'OW';
+            const btn   = document.createElement('button');
+            btn.className = 'owl-account-btn';
+            btn.innerHTML = `<span class="owl-account-avatar">${escapeHtml(init)}</span><span>${escapeHtml(name)}</span>`;
+            btn.addEventListener('click', () => pickAccount(d.email, name));
+            listEl.appendChild(btn);
+        });
+    } catch (e) {
+        // Roster not readable (e.g. rules not updated yet) — fall back to email.
+        console.warn('loadAccountList:', e.message);
+        listEl.innerHTML = '<p class="owl-account-empty">Could not load names. Use “Sign in with email instead.”</p>';
+    }
+}
+
+// A name was tapped → go to the PIN step.
+function pickAccount(email, name) {
+    pendingLoginEmail = email;
+    document.getElementById('owl-pin-name').textContent = name;
+    document.getElementById('owl-pin-error').textContent = '';
+    const pinInput = document.getElementById('owl-login-pin');
+    pinInput.value = '';
+    showLoginStep('pin');
+    setTimeout(() => pinInput.focus(), 60);
+}
+
+// Sign in with the picked account + entered PIN.
+async function signInWithPin() {
+    const pin     = (document.getElementById('owl-login-pin').value || '').trim();
+    const errorEl = document.getElementById('owl-pin-error');
+    const btn     = document.getElementById('owl-pin-submit');
+
+    if (!/^\d{4}$/.test(pin)) {
+        errorEl.textContent = 'Enter your 4-digit PIN.';
+        return;
+    }
+    btn.disabled    = true;
+    btn.textContent = 'Signing in…';
+    errorEl.textContent = '';
+
+    try {
+        await auth.signInWithEmailAndPassword(pendingLoginEmail, pinToPassword(pin));
+        closeLoginModal();
+    } catch (e) {
+        errorEl.textContent = 'Incorrect PIN. Try again.';
+        btn.disabled    = false;
+        btn.textContent = 'Sign In';
+    }
 }
 
 // ── Sign In ──────────────────────────────────────────────────
@@ -267,12 +388,56 @@ document.getElementById('wildlife-resources-btn')?.addEventListener('click', () 
     if (typeof buildGlobalWildlifeList === 'function') buildGlobalWildlifeList();
 });
 
+// ── Set / change PIN from Profile ────────────────────────────
+async function saveOwlPin() {
+    const input = document.getElementById('owl-set-pin-input');
+    const msg   = document.getElementById('owl-set-pin-msg');
+    const btn   = document.getElementById('owl-set-pin-btn');
+    const pin   = (input.value || '').trim();
+
+    msg.className = 'owl-pin-msg';
+    if (!/^\d{4}$/.test(pin)) {
+        msg.textContent = 'PIN must be exactly 4 digits.';
+        msg.classList.add('error');
+        return;
+    }
+    const user = auth.currentUser;
+    if (!user) {
+        msg.textContent = 'Please sign in again.';
+        msg.classList.add('error');
+        return;
+    }
+
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Saving…';
+    try {
+        await user.updatePassword(pinToPassword(pin));
+        input.value = '';
+        msg.textContent = 'PIN saved — you can now sign in by tapping your name.';
+        msg.classList.add('success');
+    } catch (e) {
+        if (e.code === 'auth/requires-recent-login') {
+            msg.textContent = 'For security, please log out and back in, then set your PIN.';
+        } else {
+            msg.textContent = 'Could not save PIN — please try again.';
+        }
+        msg.classList.add('error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
 // ── Keyboard shortcuts in modal ──────────────────────────────
 document.addEventListener('keydown', (e) => {
     const modal = document.getElementById('owl-login-modal');
     if (modal.classList.contains('hidden')) return;
-    if (e.key === 'Enter')  signInOwl();
-    if (e.key === 'Escape') closeLoginModal();
+    if (e.key === 'Escape') { closeLoginModal(); return; }
+    if (e.key !== 'Enter') return;
+    // Submit whichever step is active.
+    if (!document.getElementById('owl-login-step-pin').classList.contains('hidden'))   signInWithPin();
+    else if (!document.getElementById('owl-login-step-email').classList.contains('hidden')) signInOwl();
 });
 
 // ── Issue Reporting ──────────────────────────────────────────

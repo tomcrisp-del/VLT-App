@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.2">
+    <link rel="stylesheet" href="css/style.css?v=2.3">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -529,6 +529,19 @@
                 </div>
             </div>
 
+            <!-- My PIN (logged-in only) — set/change the 4-digit PIN used to sign in -->
+            <div id="owl-pin-section" class="hidden owl-section">
+                <div class="owl-section-header">
+                    <h3 class="owl-section-title">My Login PIN</h3>
+                </div>
+                <p class="owl-section-sub">Set a 4-digit PIN so you can sign in by tapping your name.</p>
+                <div class="owl-pin-set-row">
+                    <input id="owl-set-pin-input" type="tel" inputmode="numeric" maxlength="4" class="owl-modal-input owl-pin-input" placeholder="••••" autocomplete="off" />
+                    <button id="owl-set-pin-btn" class="owl-section-btn" onclick="saveOwlPin()">Save PIN</button>
+                </div>
+                <div id="owl-set-pin-msg" class="owl-pin-msg"></div>
+            </div>
+
             <!-- Admin Tools (admin-only) — sits between profile and preferred trails -->
             <div id="owl-admin-section" class="hidden owl-section">
                 <div class="owl-section-header">
@@ -997,25 +1010,51 @@
     <div id="owl-login-modal" class="hidden">
         <div class="owl-modal-overlay" onclick="closeLoginModal()"></div>
         <div class="owl-modal-card">
-            <h2 class="owl-modal-title">Owls Login</h2>
-            <p class="owl-modal-sub">Sign in with your Owl credentials</p>
-            <input id="owl-login-email" type="email" class="owl-modal-input" placeholder="Email address" autocomplete="email" />
-            <input id="owl-login-password" type="password" class="owl-modal-input" placeholder="Password" autocomplete="current-password" />
-            <div id="owl-login-error" class="owl-login-error"></div>
-            <button id="owl-login-submit" class="become-owl-btn" style="margin-top:0" onclick="signInOwl()">Sign In</button>
-            <button class="owl-modal-cancel" onclick="closeLoginModal()">Cancel</button>
+
+            <!-- Step 1: pick your account -->
+            <div id="owl-login-step-pick">
+                <h2 class="owl-modal-title">Owls Login</h2>
+                <p class="owl-modal-sub">Tap your name to sign in</p>
+                <div id="owl-account-list" class="owl-account-list">
+                    <p class="owl-account-loading">Loading…</p>
+                </div>
+                <button class="owl-modal-link" onclick="showEmailLogin()">Sign in with email instead</button>
+                <button class="owl-modal-cancel" onclick="closeLoginModal()">Cancel</button>
+            </div>
+
+            <!-- Step 2: enter your 4-digit PIN -->
+            <div id="owl-login-step-pin" class="hidden">
+                <h2 class="owl-modal-title">Enter your PIN</h2>
+                <p class="owl-modal-sub" id="owl-pin-name"></p>
+                <input id="owl-login-pin" type="tel" inputmode="numeric" maxlength="4" class="owl-modal-input owl-pin-input" placeholder="••••" autocomplete="off" />
+                <div id="owl-pin-error" class="owl-login-error"></div>
+                <button id="owl-pin-submit" class="become-owl-btn" style="margin-top:0" onclick="signInWithPin()">Sign In</button>
+                <button class="owl-modal-link" onclick="backToPicker()">&larr; Back</button>
+            </div>
+
+            <!-- Step 3: email + password fallback (recovery / bootstrap) -->
+            <div id="owl-login-step-email" class="hidden">
+                <h2 class="owl-modal-title">Sign in with email</h2>
+                <p class="owl-modal-sub">Use your email and password or PIN</p>
+                <input id="owl-login-email" type="email" class="owl-modal-input" placeholder="Email address" autocomplete="email" />
+                <input id="owl-login-password" type="password" class="owl-modal-input" placeholder="Password" autocomplete="current-password" />
+                <div id="owl-login-error" class="owl-login-error"></div>
+                <button id="owl-login-submit" class="become-owl-btn" style="margin-top:0" onclick="signInOwl()">Sign In</button>
+                <button class="owl-modal-link" onclick="backToPicker()">&larr; Back</button>
+            </div>
+
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.2"></script>
-    <script src="js/app.js?v=2.2"></script>
+    <script src="js/wildlife-data.js?v=2.3"></script>
+    <script src="js/app.js?v=2.3"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.2"></script>
+    <script src="js/owls.js?v=2.3"></script>
 </body>
 </html>

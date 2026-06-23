@@ -1927,6 +1927,117 @@ header {
     color: #1a3d3d;
 }
 
+/* ── ACCOUNT PICKER + PIN LOGIN ── */
+#owl-login-step-pick.hidden,
+#owl-login-step-pin.hidden,
+#owl-login-step-email.hidden { display: none; }
+
+.owl-account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.owl-account-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #c5d5cc;
+    border-radius: 0.5rem;
+    background: #f8faf9;
+    font-family: inherit;
+    font-size: 1.05rem;
+    color: #1a3d3d;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.owl-account-btn:hover,
+.owl-account-btn:active {
+    background: #e8f1ec;
+    border-color: #3d8b6f;
+}
+
+.owl-account-avatar {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #3d8b6f;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.owl-account-loading,
+.owl-account-empty {
+    text-align: center;
+    color: #6a8a7a;
+    font-size: 0.9rem;
+    padding: 1rem 0;
+}
+
+.owl-pin-input {
+    text-align: center;
+    letter-spacing: 0.6em;
+    font-size: 1.6rem;
+    padding-left: 0.6em; /* offset letter-spacing so it stays centered */
+}
+
+.owl-modal-link {
+    background: none;
+    border: none;
+    color: #3d8b6f;
+    font-size: 0.875rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+    padding: 0.4rem;
+    text-decoration: underline;
+}
+
+.owl-modal-link:hover {
+    color: #1a3d3d;
+}
+
+/* ── PROFILE PIN SETTER ── */
+.owl-pin-set-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.owl-pin-set-row .owl-pin-input {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.owl-pin-set-row .owl-section-btn {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.owl-pin-msg {
+    font-size: 0.82rem;
+    min-height: 1rem;
+    margin-top: 0.4rem;
+}
+
+.owl-pin-msg.success { color: #3d8b6f; }
+.owl-pin-msg.error   { color: #dc2626; }
+
 /* ── TASKS VIEW ── */
 #tasks-view {
     position: fixed;
