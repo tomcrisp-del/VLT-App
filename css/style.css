@@ -4757,6 +4757,81 @@ header {
 }
 .owl-action-btn-secondary:active { background: #eef2f0; }
 
+/* Contact popup (member-card "Contact" button) */
+.owl-contact-pop {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+.owl-contact-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+.owl-contact-card {
+    position: relative;
+    width: 100%;
+    max-width: 340px;
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.owl-contact-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    color: #1a3d3d;
+    text-align: center;
+}
+.owl-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid #d8e2dc;
+    border-radius: 0.625rem;
+    text-decoration: none;
+    color: #1a3d3d;
+    background: #f8faf9;
+}
+.owl-contact-row:active { background: #e8f1ec; }
+.owl-contact-ic { font-size: 1.2rem; }
+.owl-contact-txt {
+    display: flex;
+    flex-direction: column;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.owl-contact-sub {
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: #6a8a7a;
+}
+.owl-contact-empty {
+    text-align: center;
+    color: #6a8a7a;
+    font-size: 0.9rem;
+    padding: 0.5rem 0;
+}
+.owl-contact-close {
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    border: none;
+    background: none;
+    color: #6a8a7a;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.owl-contact-close:active { color: #1a3d3d; }
+
 /* Day toggles (interactive, in the volunteer profile section) */
 .day-toggles {
     display: flex;

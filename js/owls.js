@@ -22,8 +22,9 @@ const firebaseConfig = {
 };
 
 // ── Cloudinary (free unsigned uploads) ──────────────────────────
-const CLOUDINARY_CLOUD_NAME    = 'YOUR_CLOUD_NAME';    // ← paste from cloudinary.com dashboard
-const CLOUDINARY_UPLOAD_PRESET = 'YOUR_UPLOAD_PRESET'; // ← paste unsigned preset name
+// Unsigned preset only — no API key/secret here (this file is public).
+const CLOUDINARY_CLOUD_NAME    = 'dgxm7tzpd';
+const CLOUDINARY_UPLOAD_PRESET = 'nqubozdj';
 
 firebase.initializeApp(firebaseConfig);
 const auth    = firebase.auth();
@@ -3005,9 +3006,6 @@ function buildOwlCard(u) {
 
     const youTag = isMe ? ' <span class="owl-you-tag">YOU</span>' : '';
 
-    // Contact button is intentionally omitted for now — will be re-introduced later.
-    const contactHTML = '';
-
     const days     = u.availableDays    || [];
     const seasons  = u.availableSeasons || [];
     const prefs    = (u.preferredTrails || []).slice(0, 5);
@@ -3057,9 +3055,50 @@ function buildOwlCard(u) {
 
         <div class="owl-card-section owl-card-actions">
             <button class="owl-action-btn" data-action="view-info" type="button">View info</button>
-            <button class="owl-action-btn owl-action-btn-secondary" data-action="contact-owl" type="button">Contact</button>
+            <button class="owl-action-btn owl-action-btn-secondary" data-action="contact-owl"
+                    data-name="${escapeHtml(u.displayName || u.email || 'Owl')}"
+                    data-email="${escapeHtml(u.email || '')}"
+                    data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
+                    type="button">Contact</button>
         </div>`;
     return card;
+}
+
+// Contact popup for a member card — Email always (it's their login), plus
+// Call / Text when a phone number is on file.
+function openOwlContact(name, email, phone) {
+    document.getElementById('owl-contact-pop')?.remove();
+
+    const dial = (phone || '').replace(/[^\d+]/g, '');
+    const rows = [];
+    if (email) {
+        rows.push(`<a class="owl-contact-row" href="mailto:${encodeURIComponent(email)}">
+            <span class="owl-contact-ic">✉️</span>
+            <span class="owl-contact-txt">Email<span class="owl-contact-sub">${escapeHtml(email)}</span></span></a>`);
+    }
+    if (dial) {
+        rows.push(`<a class="owl-contact-row" href="tel:${dial}">
+            <span class="owl-contact-ic">📞</span>
+            <span class="owl-contact-txt">Call<span class="owl-contact-sub">${escapeHtml(phone)}</span></span></a>`);
+        rows.push(`<a class="owl-contact-row" href="sms:${dial}">
+            <span class="owl-contact-ic">💬</span>
+            <span class="owl-contact-txt">Text<span class="owl-contact-sub">${escapeHtml(phone)}</span></span></a>`);
+    }
+    if (!rows.length) rows.push('<div class="owl-contact-empty">No contact info on file yet.</div>');
+
+    const pop = document.createElement('div');
+    pop.id = 'owl-contact-pop';
+    pop.className = 'owl-contact-pop';
+    pop.innerHTML = `
+        <div class="owl-contact-backdrop"></div>
+        <div class="owl-contact-card">
+            <h3 class="owl-contact-title">Contact ${escapeHtml(name || 'Owl')}</h3>
+            ${rows.join('')}
+            <button class="owl-contact-close" type="button">Close</button>
+        </div>`;
+    document.body.appendChild(pop);
+    pop.querySelector('.owl-contact-backdrop').addEventListener('click', () => pop.remove());
+    pop.querySelector('.owl-contact-close').addEventListener('click', () => pop.remove());
 }
 
 function renderBadgeLegend() {
@@ -3085,6 +3124,13 @@ document.getElementById('flock-refresh-btn').addEventListener('click', () => {
     btn.classList.add('spinning');
     setTimeout(() => btn.classList.remove('spinning'), 700);
     loadFlock();
+});
+
+// Delegated handler for member-card actions (cards are re-rendered on each load).
+document.getElementById('flock-list')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="contact-owl"]');
+    if (!btn) return;
+    openOwlContact(btn.dataset.name, btn.dataset.email, btn.dataset.phone);
 });
 
 // ── Global API ───────────────────────────────────────────────
