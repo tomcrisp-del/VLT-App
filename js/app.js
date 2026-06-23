@@ -1836,38 +1836,38 @@ async function showProperty(prop) {
     const lengthEl = document.getElementById("detail-length");
     renderTrailStats(prop, lengthEl);
 
-    // ── Load description (RTF) ──
+    // ── Show detail view immediately so the user isn't stuck on the all-trails
+    //    map tooltip while the description file loads over the network. ──
+    switchView("detail-view");
+
+    // ── Load description (RTF) in the background ──
     const descEl = document.getElementById("detail-desc");
     descEl.textContent = "";
 
     if (prop.description) {
-        try {
-            const res = await fetch(propPath(prop, prop.description));
-            const rtf = await res.text();
-            const plain = parseRTF(rtf);
-            const fields = parseDescriptionFields(plain);
-            if (fields.warnings || fields.description) {
-                descEl.innerHTML = "";
-                for (const warning of (fields.warnings || [])) {
-                    const p = document.createElement("p");
-                    p.style.fontWeight = "bold";
-                    p.style.color = "#cc0000";
-                    p.textContent = warning;
-                    descEl.appendChild(p);
+        fetch(propPath(prop, prop.description))
+            .then(res => res.text())
+            .then(rtf => {
+                const plain = parseRTF(rtf);
+                const fields = parseDescriptionFields(plain);
+                if (fields.warnings || fields.description) {
+                    descEl.innerHTML = "";
+                    for (const warning of (fields.warnings || [])) {
+                        const p = document.createElement("p");
+                        p.style.fontWeight = "bold";
+                        p.style.color = "#cc0000";
+                        p.textContent = warning;
+                        descEl.appendChild(p);
+                    }
+                    for (const para of (fields.description || [])) {
+                        const p = document.createElement("p");
+                        p.textContent = para;
+                        descEl.appendChild(p);
+                    }
                 }
-                for (const para of (fields.description || [])) {
-                    const p = document.createElement("p");
-                    p.textContent = para;
-                    descEl.appendChild(p);
-                }
-            }
-        } catch (err) {
-            console.error("Failed to load description:", err);
-        }
+            })
+            .catch(err => console.error("Failed to load description:", err));
     }
-
-    // ── Show detail view ──
-    switchView("detail-view");
 
     // ── Initialize map in bottom half ──
     if (detailMap) {
