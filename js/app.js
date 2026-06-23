@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.0.10";
+const APP_VERSION = "1.1.0";
 
 const properties = [
     {
@@ -41,6 +41,7 @@ const properties = [
             "trail-armbrust-hill-town-park-2.kml",
             "trail-armbrust-hill-town-park-3.kml",
             "trail-armbrust-hill-town-park-4.kml",
+            "trail-armbrust-hill-town-park-5.kml",
         ],
         boundary: "boundary-armbrust-hill-town-park.kml",
         parking: ["parking-armbrust-hill-town-park.kml"],

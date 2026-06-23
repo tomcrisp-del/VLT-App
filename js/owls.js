@@ -2470,7 +2470,9 @@ function buildAdminIssueCard(issue) {
             </div>
             <h3 class="task-card-title">${escapeHtml(issue.title || '(untitled)')}</h3>
             ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
+            ${issue.reportedPhotoUrl ? `<img class="task-card-photo admin-reported-photo" src="${issue.reportedPhotoUrl}" alt="Reported photo" loading="lazy">` : ''}
             <div class="task-card-meta-line">
+                ${issue.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(issue.trailName))}</span>` : ''}
                 ${reporter ? `<span class="task-card-by">Reported by ${escapeHtml(reporter)}</span>` : ''}
                 <span class="task-card-date">${dateStr}</span>
             </div>
@@ -2478,6 +2480,10 @@ function buildAdminIssueCard(issue) {
             <div class="task-action-row admin-issue-actions">${actions}</div>
         </div>`;
 
+    // Tap the reported photo to view it full-size in a new tab.
+    card.querySelector('.admin-reported-photo')?.addEventListener('click', () => {
+        if (issue.reportedPhotoUrl) window.open(issue.reportedPhotoUrl, '_blank', 'noopener');
+    });
     card.querySelector('.admin-approve-btn')?.addEventListener('click', e => approveSubmission(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-resolve-btn')?.addEventListener('click', e => adminResolveIssue(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-reject-btn')?.addEventListener('click',  e => rejectTask(e.currentTarget.dataset.id, e.currentTarget));
