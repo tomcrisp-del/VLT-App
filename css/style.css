@@ -2010,31 +2010,89 @@ header {
     color: #1a3d3d;
 }
 
-/* ── PROFILE PIN SETTER ── */
-.owl-pin-set-row {
+/* ── PROFILE PIN SETTER (compact) ── */
+.owl-pin-compact {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 0.6rem;
 }
 
-.owl-pin-set-row .owl-pin-input {
-    flex: 1 1 auto;
-    margin: 0;
-}
-
-.owl-pin-set-row .owl-section-btn {
+.owl-pin-label {
     flex: 0 0 auto;
-    width: auto;
-    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a3d3d;
+}
+
+.owl-pin-field {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    border: 1px solid #c5d5cc;
+    border-radius: 0.375rem;
+    background: #f8faf9;
+    overflow: hidden;
+}
+
+.owl-pin-field:focus-within {
+    border-color: #3d8b6f;
+}
+
+.owl-pin-input-compact {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0.55rem 0.7rem;
+    font-size: 1.1rem;
+    font-family: inherit;
+    color: #1a3d3d;
+    letter-spacing: 0.35em;
+    text-align: center;
+}
+
+.owl-pin-eye {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: #6a8a7a;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+}
+
+.owl-pin-eye:hover { color: #1a3d3d; }
+.owl-pin-eye.revealed { color: #3d8b6f; }
+
+.owl-pin-save-btn {
+    flex: 0 0 auto;
+    border: none;
+    background: #3d8b6f;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
     white-space: nowrap;
 }
 
+.owl-pin-save-btn:active { background: #2f6f58; }
+.owl-pin-save-btn:disabled { opacity: 0.6; }
+
 .owl-pin-msg {
-    font-size: 0.82rem;
-    min-height: 1rem;
-    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    min-height: 0;
+    margin-top: 0;
+    transition: margin 0.15s;
 }
 
+.owl-pin-msg:not(:empty) { margin-top: 0.45rem; }
 .owl-pin-msg.success { color: #3d8b6f; }
 .owl-pin-msg.error   { color: #dc2626; }
 

@@ -130,13 +130,16 @@ function updateOwlsView(loggedIn) {
             renderPreferredTrailToggles();
         }
 
-        // PIN section: visible for all logged-in users
+        // PIN section: visible for all logged-in users. Pre-fill with the
+        // stored PIN (masked) so the eye toggle can reveal the current value.
         const pinSection = document.getElementById('owl-pin-section');
         if (pinSection) {
             pinSection.classList.remove('hidden');
             const pinInput = document.getElementById('owl-set-pin-input');
             const pinMsg   = document.getElementById('owl-set-pin-msg');
-            if (pinInput) pinInput.value = '';
+            const pinEye   = document.getElementById('owl-pin-eye');
+            if (pinInput) { pinInput.value = currentOwl.pin || ''; pinInput.type = 'password'; }
+            if (pinEye)   pinEye.classList.remove('revealed');
             if (pinMsg)   { pinMsg.textContent = ''; pinMsg.className = 'owl-pin-msg'; }
         }
 
@@ -413,8 +416,13 @@ async function saveOwlPin() {
     btn.textContent = 'Saving…';
     try {
         await user.updatePassword(pinToPassword(pin));
-        input.value = '';
-        msg.textContent = 'PIN saved — you can now sign in by tapping your name.';
+        // Also store the readable PIN so the profile can show it (Firebase
+        // only keeps a one-way hash of the password, so we can't read it back).
+        try {
+            await db.collection('users').doc(user.uid).set({ pin }, { merge: true });
+            currentOwl.pin = pin;
+        } catch (_) { /* non-fatal: PIN still works to log in */ }
+        msg.textContent = 'PIN saved.';
         msg.classList.add('success');
     } catch (e) {
         if (e.code === 'auth/requires-recent-login') {
@@ -427,6 +435,16 @@ async function saveOwlPin() {
         btn.disabled = false;
         btn.textContent = original;
     }
+}
+
+// Show/hide the current PIN in the profile field.
+function togglePinVisibility() {
+    const input = document.getElementById('owl-set-pin-input');
+    const eye   = document.getElementById('owl-pin-eye');
+    if (!input) return;
+    const reveal = input.type === 'password';
+    input.type = reveal ? 'text' : 'password';
+    if (eye) eye.classList.toggle('revealed', reveal);
 }
 
 // ── Keyboard shortcuts in modal ──────────────────────────────
