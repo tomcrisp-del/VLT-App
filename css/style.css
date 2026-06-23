@@ -3578,7 +3578,10 @@ header {
     align-items: center;
     gap: 12px;
 }
-#tasks-loading.hidden { display: none; }
+/* Class-based so it hides EVERY .tasks-loading box (Tasks, admin, flock) —
+   the admin/flock ones use this class but their own ids, so an id-specific
+   rule left their "Loading…" box stuck at the bottom of the scroll area. */
+.tasks-loading.hidden { display: none; }
 
 /* ── Task 6: Completion Flow ──────────────────────────────────── */
 
@@ -3939,6 +3942,16 @@ header {
 }
 #member-profile-panel.hidden { display: none; }
 
+#admin-edit-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+#admin-edit-panel.hidden { display: none; }
+
 /* Admin full-screen panels */
 #admin-issues-panel,
 #admin-members-panel {
@@ -3973,7 +3986,7 @@ header {
 .admin-topbar .tasks-back-link { justify-self: start; }
 .admin-topbar .tasks-topbar-title {
     margin: 0;
-    font-size: 1.65rem;        /* slightly smaller than Tasks page to fit the badge */
+    font-size: 1.2rem;         /* compact so it never crowds the back button */
     font-weight: 600;
     color: #2c5f2d;
     font-family: inherit;

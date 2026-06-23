@@ -1323,13 +1323,14 @@ function renderTrailGrouped() {
 
     const uid = currentOwl?.uid;
 
-    // Open work pool. Once a volunteer marks an issue Fixed it becomes
-    // 'pending_review' and leaves the Tasks page entirely — it then lives only
+    // Open work pool. Only admin-approved issues ('open'/'claimed') appear here.
+    // A non-admin's new report stays 'pending_approval' and is hidden from the
+    // Tasks list — for everyone, including its reporter — until an admin
+    // approves it in the admin panel. Once a volunteer marks an issue Fixed it
+    // becomes 'pending_review' and likewise leaves the Tasks page, living only
     // in the admin panel until an admin marks it Resolved.
     const fullPool = allTasks.filter(t => {
-        if (t.status === 'open' || t.status === 'claimed') return true;
-        if (t.status === 'pending_approval') return t.reportedBy?.uid === uid;
-        return false;
+        return t.status === 'open' || t.status === 'claimed';
     });
 
     // Group ALL trails (for the slot machine + callout — counts must reflect everything)
