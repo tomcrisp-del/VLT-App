@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.4">
+    <link rel="stylesheet" href="css/style.css?v=2.5">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -529,21 +529,6 @@
                 </div>
             </div>
 
-            <!-- My PIN (logged-in only) — compact: view / change the 4-digit login PIN -->
-            <div id="owl-pin-section" class="hidden owl-section owl-pin-section">
-                <div class="owl-pin-compact">
-                    <span class="owl-pin-label">Login PIN</span>
-                    <div class="owl-pin-field">
-                        <input id="owl-set-pin-input" type="password" inputmode="numeric" maxlength="4" class="owl-pin-input-compact" placeholder="••••" autocomplete="off" />
-                        <button type="button" id="owl-pin-eye" class="owl-pin-eye" onclick="togglePinVisibility()" aria-label="Show PIN" title="Show/hide PIN">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5C21.3 7.6 17 4.5 12 4.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
-                        </button>
-                    </div>
-                    <button id="owl-set-pin-btn" class="owl-pin-save-btn" onclick="saveOwlPin()">Save</button>
-                </div>
-                <div id="owl-set-pin-msg" class="owl-pin-msg"></div>
-            </div>
-
             <!-- Admin Tools (admin-only) — sits between profile and preferred trails -->
             <div id="owl-admin-section" class="hidden owl-section">
                 <div class="owl-section-header">
@@ -893,6 +878,15 @@
             <p class="issue-form-trail-name">Help us reach you and keep you safe on the trails.</p>
 
             <div class="issue-form-field">
+                <label class="issue-form-label" for="owl-set-pin-input">Login PIN <span class="issue-form-label-hint">(4 digits — tap your name + this PIN to sign in)</span></label>
+                <div class="owl-pin-field">
+                    <input id="owl-set-pin-input" type="password" inputmode="numeric" maxlength="4" class="owl-pin-input-compact" placeholder="••••" autocomplete="off">
+                    <button type="button" id="owl-pin-eye" class="owl-pin-eye" onclick="togglePinVisibility()" aria-label="Show PIN" title="Show/hide PIN">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5C21.3 7.6 17 4.5 12 4.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="issue-form-field">
                 <label class="issue-form-label" for="member-fullname">Full Legal Name</label>
                 <input type="text" id="member-fullname" class="issue-form-input" autocomplete="name">
             </div>
@@ -1051,12 +1045,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.4"></script>
-    <script src="js/app.js?v=2.4"></script>
+    <script src="js/wildlife-data.js?v=2.5"></script>
+    <script src="js/app.js?v=2.5"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.4"></script>
+    <script src="js/owls.js?v=2.5"></script>
 </body>
 </html>

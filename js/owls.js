@@ -130,19 +130,6 @@ function updateOwlsView(loggedIn) {
             renderPreferredTrailToggles();
         }
 
-        // PIN section: visible for all logged-in users. Pre-fill with the
-        // stored PIN (masked) so the eye toggle can reveal the current value.
-        const pinSection = document.getElementById('owl-pin-section');
-        if (pinSection) {
-            pinSection.classList.remove('hidden');
-            const pinInput = document.getElementById('owl-set-pin-input');
-            const pinMsg   = document.getElementById('owl-set-pin-msg');
-            const pinEye   = document.getElementById('owl-pin-eye');
-            if (pinInput) { pinInput.value = currentOwl.pin || ''; pinInput.type = 'password'; }
-            if (pinEye)   pinEye.classList.remove('revealed');
-            if (pinMsg)   { pinMsg.textContent = ''; pinMsg.className = 'owl-pin-msg'; }
-        }
-
         // Hide recruitment content, show The Flock leaderboard.
         // (Impact strip is shown to everyone — it's outside this block.)
         const owlsLogo   = document.getElementById('owls-logo');
@@ -187,8 +174,6 @@ function updateOwlsView(loggedIn) {
         if (availSection) availSection.classList.add('hidden');
         const prefSection = document.getElementById('owl-preferred-trails-section');
         if (prefSection) prefSection.classList.add('hidden');
-        const pinSection = document.getElementById('owl-pin-section');
-        if (pinSection) pinSection.classList.add('hidden');
 
         // Show recruitment content, hide The Flock.
         // (Impact strip stays visible — it's a public stat now.)
@@ -391,53 +376,7 @@ document.getElementById('wildlife-resources-btn')?.addEventListener('click', () 
     if (typeof buildGlobalWildlifeList === 'function') buildGlobalWildlifeList();
 });
 
-// ── Set / change PIN from Profile ────────────────────────────
-async function saveOwlPin() {
-    const input = document.getElementById('owl-set-pin-input');
-    const msg   = document.getElementById('owl-set-pin-msg');
-    const btn   = document.getElementById('owl-set-pin-btn');
-    const pin   = (input.value || '').trim();
-
-    msg.className = 'owl-pin-msg';
-    if (!/^\d{4}$/.test(pin)) {
-        msg.textContent = 'PIN must be exactly 4 digits.';
-        msg.classList.add('error');
-        return;
-    }
-    const user = auth.currentUser;
-    if (!user) {
-        msg.textContent = 'Please sign in again.';
-        msg.classList.add('error');
-        return;
-    }
-
-    btn.disabled = true;
-    const original = btn.textContent;
-    btn.textContent = 'Saving…';
-    try {
-        await user.updatePassword(pinToPassword(pin));
-        // Also store the readable PIN so the profile can show it (Firebase
-        // only keeps a one-way hash of the password, so we can't read it back).
-        try {
-            await db.collection('users').doc(user.uid).set({ pin }, { merge: true });
-            currentOwl.pin = pin;
-        } catch (_) { /* non-fatal: PIN still works to log in */ }
-        msg.textContent = 'PIN saved.';
-        msg.classList.add('success');
-    } catch (e) {
-        if (e.code === 'auth/requires-recent-login') {
-            msg.textContent = 'For security, please log out and back in, then set your PIN.';
-        } else {
-            msg.textContent = 'Could not save PIN — please try again.';
-        }
-        msg.classList.add('error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = original;
-    }
-}
-
-// Show/hide the current PIN in the profile field.
+// Show/hide the current PIN in the Edit My Info field.
 function togglePinVisibility() {
     const input = document.getElementById('owl-set-pin-input');
     const eye   = document.getElementById('owl-pin-eye');
@@ -2017,6 +1956,12 @@ function openMemberProfile() {
     document.getElementById('member-chainsaw-check').checked = !!currentOwl.chainsawCertified;
     document.getElementById('member-profile-error').textContent = '';
 
+    // Login PIN — prefilled (masked) so the eye toggle can reveal the current value.
+    const pinInput = document.getElementById('owl-set-pin-input');
+    const pinEye   = document.getElementById('owl-pin-eye');
+    if (pinInput) { pinInput.value = currentOwl.pin || ''; pinInput.type = 'password'; }
+    if (pinEye)   pinEye.classList.remove('revealed');
+
     document.getElementById('member-profile-panel').classList.remove('hidden');
 }
 
@@ -2029,6 +1974,15 @@ async function saveMemberProfile() {
     const saveBtn = document.getElementById('member-profile-save-btn');
     const errorEl = document.getElementById('member-profile-error');
     saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; errorEl.textContent = '';
+
+    // Validate the PIN up front (if changed) so we don't half-save.
+    const pinVal     = (document.getElementById('owl-set-pin-input').value || '').trim();
+    const pinChanged = pinVal !== (currentOwl.pin || '');
+    if (pinChanged && !/^\d{4}$/.test(pinVal)) {
+        errorEl.textContent = 'Login PIN must be exactly 4 digits.';
+        saveBtn.disabled = false; saveBtn.textContent = 'Save My Info';
+        return;
+    }
 
     const profile = {
         fullName:     document.getElementById('member-fullname').value.trim(),
@@ -2064,8 +2018,6 @@ async function saveMemberProfile() {
         if (waiverSigned && !currentOwl.waiverSignedAt) currentOwl.waiverSignedAt = new Date();
         if (chainsawCertified && !currentOwl.chainsawCertifiedAt) currentOwl.chainsawCertifiedAt = new Date();
         updateWaiverPill();
-        closeMemberProfile();
-        showIssueToast('Profile saved ✓');
     } catch (err) {
         console.error('saveMemberProfile error:', err);
         errorEl.textContent = 'Could not save — try again.';
@@ -2073,6 +2025,26 @@ async function saveMemberProfile() {
         saveBtn.textContent = 'Save My Info';
         return;
     }
+
+    // Apply a PIN change last — it touches the auth password, which can fail
+    // independently (e.g. needs a recent login). Profile is already saved.
+    if (pinChanged) {
+        try {
+            await auth.currentUser.updatePassword(pinToPassword(pinVal));
+            await db.collection('users').doc(currentOwl.uid).set({ pin: pinVal }, { merge: true });
+            currentOwl.pin = pinVal;
+        } catch (e) {
+            errorEl.textContent = (e.code === 'auth/requires-recent-login')
+                ? 'Info saved, but to change your PIN please log out and back in first.'
+                : 'Info saved, but the PIN could not be updated — try again.';
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save My Info';
+            return;
+        }
+    }
+
+    closeMemberProfile();
+    showIssueToast('Profile saved ✓');
     saveBtn.disabled = false;
     saveBtn.textContent = 'Save My Info';
 }
