@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.20">
+    <link rel="stylesheet" href="css/style.css?v=2.21">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -277,6 +277,10 @@
             <div id="wildlife-resources-item" class="hidden">
                 <button class="wildlife-resources-btn" id="wildlife-resources-btn">Wildlife of Vinalhaven <span>→</span></button>
             </div>
+            <!-- Trail Sightings feed — visible to logged-in Owls only -->
+            <div id="sightings-resources-item" class="hidden">
+                <button class="wildlife-resources-btn" id="sightings-resources-btn">Trail Sightings <span>→</span></button>
+            </div>
             <div class="resources-dropdown resources-dropdown--featured">
                 <button class="dropdown-header" data-target="faq-section">Frequently Asked Questions <span class="dropdown-arrow">→</span></button>
                 <div id="faq-section" class="dropdown-content hidden">
@@ -445,7 +449,7 @@
                 <div id="car-cruise-section" class="dropdown-content hidden">
                     <div class="resource-content">
                         <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">A comprehensive guide to exploring Vinalhaven by car, featuring scenic drives, points of interest, and local attractions.</p>
-                        <a href="Vinalhaven Land Cruise V1.pdf" target="_blank" class="resource-link">📄 Download Car Cruise Guide PDF</a>
+                        <a href="Vinalhaven-Car-Cruise-Guide.pdf" target="_blank" rel="noopener" class="resource-link">📄 Download Car Cruise Guide PDF</a>
                     </div>
                 </div>
             </div>
@@ -1073,6 +1077,64 @@
         </div>
     </div>
 
+    <!-- Trail Sightings feed (full-screen overlay) -->
+    <div id="sightings-view" class="hidden">
+        <div id="sightings-header">
+            <button id="sightings-back-btn">&larr; Resources</button>
+            <h2>Trail Sightings</h2>
+        </div>
+        <div id="sightings-content">
+            <button id="sighting-new-btn" class="sighting-new-btn" type="button">📷 Post a Sighting</button>
+            <div id="sightings-feed"></div>
+            <div id="sightings-empty" class="sightings-empty hidden">No sightings yet — be the first to share something you spotted on the trail!</div>
+            <div id="sightings-loading" class="tasks-loading"><div class="loading-spinner"></div><p>Loading sightings…</p></div>
+        </div>
+    </div>
+
+    <!-- Post a Sighting composer (bottom sheet) -->
+    <div id="sighting-composer" class="hidden">
+        <div class="issue-form-backdrop" id="sighting-composer-backdrop"></div>
+        <div class="issue-form-sheet">
+            <div class="issue-form-handle"></div>
+            <h3 class="issue-form-title">Post a Sighting</h3>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label">Photo</label>
+                <div id="sighting-photo-area" class="completion-photo-area">
+                    <input type="file" id="sighting-photo-input" accept="image/*">
+                    <button type="button" id="sighting-photo-btn" class="completion-photo-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                        Add Photo
+                    </button>
+                    <img id="sighting-photo-preview" class="completion-photo-preview hidden" alt="Preview">
+                    <button type="button" id="sighting-photo-remove" class="completion-photo-remove hidden">✕ Remove photo</button>
+                </div>
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="sighting-title">Title</label>
+                <input type="text" id="sighting-title" class="issue-form-input" placeholder="e.g. Bald eagle over the cove" maxlength="80">
+            </div>
+
+            <div class="issue-form-field">
+                <label class="issue-form-label" for="sighting-caption">Caption <span class="issue-form-label-hint">(optional)</span></label>
+                <textarea id="sighting-caption" class="issue-form-textarea" rows="3" placeholder="Tell other Owls about it…"></textarea>
+            </div>
+
+            <div id="sighting-progress" class="completion-progress hidden">
+                <div class="completion-progress-bar"><div class="completion-progress-fill" id="sighting-progress-fill"></div></div>
+                <p id="sighting-progress-label" class="completion-progress-label">Uploading…</p>
+            </div>
+
+            <div id="sighting-error" class="issue-form-error"></div>
+
+            <div class="issue-form-actions">
+                <button id="sighting-submit-btn" class="become-owl-btn" style="margin-top:0">Post Sighting</button>
+                <button id="sighting-cancel-btn" class="owl-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Owls Login Modal -->
     <div id="owl-login-modal" class="hidden">
         <div class="owl-modal-overlay" onclick="closeLoginModal()"></div>
@@ -1116,12 +1178,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.20"></script>
-    <script src="js/app.js?v=2.20"></script>
+    <script src="js/wildlife-data.js?v=2.21"></script>
+    <script src="js/app.js?v=2.21"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.20"></script>
+    <script src="js/owls.js?v=2.21"></script>
 </body>
 </html>

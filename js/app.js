@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.1.8";
+const APP_VERSION = "1.1.9";
 
 const properties = [
     {
@@ -1071,6 +1071,7 @@ function switchView(viewName) {
     document.getElementById("island-map-view").classList.add("hidden");
     document.getElementById("activities-view").classList.add("hidden");
     document.getElementById("owls-view")?.classList.add("hidden");
+    document.getElementById("sightings-view")?.classList.add("hidden");
     document.getElementById("events-view")?.classList.add("hidden");
     document.getElementById("tasks-view")?.classList.add("hidden");
     // Reset global species detail overlay

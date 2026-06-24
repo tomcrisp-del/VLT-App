@@ -159,8 +159,9 @@ function updateOwlsView(loggedIn) {
         const wildlifeDetailTab = document.querySelector('.detail-tab[data-tab="wildlife"]');
         if (wildlifeDetailTab) wildlifeDetailTab.innerHTML = TASKS_BTN_HTML;
 
-        // Show Wildlife in Resources
+        // Show Wildlife + Trail Sightings in Resources
         if (wildlifeResourceItem) wildlifeResourceItem.classList.remove('hidden');
+        document.getElementById('sightings-resources-item')?.classList.remove('hidden');
 
         // (FAB is always visible now — its click handler decides what to do
         //  based on auth state. No need to toggle display here.)
@@ -193,8 +194,9 @@ function updateOwlsView(loggedIn) {
         const wildlifeDetailTab = document.querySelector('.detail-tab[data-tab="wildlife"]');
         if (wildlifeDetailTab) wildlifeDetailTab.innerHTML = WILDLIFE_BTN_HTML;
 
-        // Hide Wildlife in Resources
+        // Hide Wildlife + Trail Sightings in Resources
         if (wildlifeResourceItem) wildlifeResourceItem.classList.add('hidden');
+        document.getElementById('sightings-resources-item')?.classList.add('hidden');
 
         // Cancel any active pin drop / form. The FAB stays visible; its
         // click handler will route logged-out taps to the Volunteer page.
@@ -3030,6 +3032,7 @@ async function loadFlock() {
 
         const users = [];
         usersSnap.forEach(d => users.push({ uid: d.id, ...d.data() }));
+        flockUsers = users;   // kept so the admin "Info" button can look up full profiles
         const issues = [];
         issuesSnap.forEach(d => issues.push({ id: d.id, ...d.data() }));
 
@@ -3233,17 +3236,71 @@ function buildOwlCard(u) {
             <div class="owl-season-line">${escapeHtml(seasonTxt)}</div>
         </div>
         <div class="owl-card-prefs">${prefsHTML}</div>
-        <button class="owl-action-btn owl-card-contact" data-action="contact-owl"
-                data-name="${escapeHtml(name)}"
-                data-email="${escapeHtml(u.email || '')}"
-                data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
-                type="button">Contact</button>`;
+        <div class="owl-card-btn-row">
+            ${currentOwl?.isAdmin ? `<button class="owl-action-btn owl-action-btn-secondary owl-card-info" data-action="info-owl" data-uid="${u.uid}" type="button">Info</button>` : ''}
+            <button class="owl-action-btn owl-card-contact" data-action="contact-owl"
+                    data-name="${escapeHtml(name)}"
+                    data-email="${escapeHtml(u.email || '')}"
+                    data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
+                    data-about="${escapeHtml(u.profile?.availability || '')}"
+                    type="button">Contact</button>
+        </div>`;
     return card;
+}
+
+let flockUsers = [];   // full user docs from the last Flock load (admin Info lookup)
+
+// Admin-only "Info" popup — shows everything a member listed in their profile.
+function openOwlInfo(u) {
+    if (!u) return;
+    document.getElementById('owl-info-pop')?.remove();
+    const p  = u.profile || {};
+    const ec = p.emergencyContact || {};
+    const EXP = { beginner: 'New to trail work', intermediate: 'Some experience', experienced: 'Experienced trail crew' };
+    const DAYN = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+
+    const rows = [];
+    const add = (label, val) => {
+        if (val == null || String(val).trim() === '') return;
+        rows.push(`<div class="owl-info-row"><div class="owl-info-label">${label}</div><div class="owl-info-val">${escapeHtml(String(val))}</div></div>`);
+    };
+    add('Full legal name', p.fullName);
+    add('Email', u.email);
+    add('Phone', p.phoneNumber);
+    add('Mailing address', p.address);
+    add('Date of birth', p.dateOfBirth);
+    const ecStr = [ec.name, ec.phone, ec.relation].filter(Boolean).join(' · ');
+    add('Emergency contact', ecStr);
+    add('Trail work experience', EXP[p.experience] || p.experience);
+    add('About', p.availability);
+    const days = (u.availableDays || []).slice().sort((a, b) => a - b).map(d => DAYN[d]).filter(Boolean);
+    if (days.length) add('Available days', days.join(', '));
+    const seasons = (u.availableSeasons || []).map(s => s === 'summer' ? 'Summer' : 'Off-season');
+    if (seasons.length) add('Seasons', seasons.join(', '));
+    const prefs = (u.preferredTrails || []).map(f => trailLabel(f));
+    if (prefs.length) add('Preferred trails', prefs.join(', '));
+    add('Waiver', u.waiverSigned ? 'Signed ✓' : 'Not signed');
+    add('Chainsaw certified', u.chainsawCertified ? 'Yes ✓' : 'No');
+    if (!rows.length) rows.push('<div class="owl-contact-empty">This Owl hasn’t filled in their info yet.</div>');
+
+    const pop = document.createElement('div');
+    pop.id = 'owl-info-pop';
+    pop.className = 'owl-contact-pop';
+    pop.innerHTML = `
+        <div class="owl-contact-backdrop"></div>
+        <div class="owl-contact-card owl-info-card">
+            <h3 class="owl-contact-title">${escapeHtml(u.displayName || u.email || 'Owl')}</h3>
+            <div class="owl-info-list">${rows.join('')}</div>
+            <button class="owl-contact-close" type="button">Close</button>
+        </div>`;
+    document.body.appendChild(pop);
+    pop.querySelector('.owl-contact-backdrop').addEventListener('click', () => pop.remove());
+    pop.querySelector('.owl-contact-close').addEventListener('click', () => pop.remove());
 }
 
 // Contact popup for a member card — Email always (it's their login), plus
 // Call / Text when a phone number is on file.
-function openOwlContact(name, email, phone) {
+function openOwlContact(name, email, phone, about) {
     document.getElementById('owl-contact-pop')?.remove();
 
     const dial = (phone || '').replace(/[^\d+]/g, '');
@@ -3267,10 +3324,14 @@ function openOwlContact(name, email, phone) {
     const pop = document.createElement('div');
     pop.id = 'owl-contact-pop';
     pop.className = 'owl-contact-pop';
+    const aboutHTML = (about && about.trim())
+        ? `<div class="owl-contact-about"><div class="owl-contact-about-label">About</div>${escapeHtml(about.trim())}</div>`
+        : '';
     pop.innerHTML = `
         <div class="owl-contact-backdrop"></div>
         <div class="owl-contact-card">
             <h3 class="owl-contact-title">Contact ${escapeHtml(name || 'Owl')}</h3>
+            ${aboutHTML}
             ${rows.join('')}
             <button class="owl-contact-close" type="button">Close</button>
         </div>`;
@@ -3306,9 +3367,290 @@ document.getElementById('flock-refresh-btn').addEventListener('click', () => {
 
 // Delegated handler for member-card actions (cards are re-rendered on each load).
 document.getElementById('flock-list')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="contact-owl"]');
+    const btn = e.target.closest('[data-action]');
     if (!btn) return;
-    openOwlContact(btn.dataset.name, btn.dataset.email, btn.dataset.phone);
+    if (btn.dataset.action === 'contact-owl') {
+        openOwlContact(btn.dataset.name, btn.dataset.email, btn.dataset.phone, btn.dataset.about);
+    } else if (btn.dataset.action === 'info-owl') {
+        if (currentOwl?.isAdmin) openOwlInfo(flockUsers.find(u => u.uid === btn.dataset.uid));
+    }
+});
+
+// ============================================================
+// Trail Sightings — a simple photo feed for logged-in Owls
+// ============================================================
+let sightings = [];
+let sightingPhotoFile = null;
+const openSightingComments = new Set();   // sighting ids with comments expanded
+
+function formatSightingDate(ts) {
+    const ms = tsMillis(ts);
+    if (!ms) return 'Just now';
+    return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function openSightings() {
+    if (!currentOwl) { switchView('owls-view'); return; }   // OWLS-only
+    switchView('sightings-view');
+    loadSightings();
+}
+function closeSightings() { switchView('activities-view'); }
+
+async function loadSightings() {
+    const feed    = document.getElementById('sightings-feed');
+    const empty   = document.getElementById('sightings-empty');
+    const loading = document.getElementById('sightings-loading');
+    feed.innerHTML = ''; empty.classList.add('hidden'); loading.classList.remove('hidden');
+    try {
+        const snap = await db.collection('sightings').orderBy('postedAt', 'desc').get();
+        sightings = [];
+        snap.forEach(d => sightings.push({ id: d.id, ...d.data() }));
+    } catch (e) {
+        console.warn('loadSightings:', e.message);
+    }
+    loading.classList.add('hidden');
+    renderSightingsFeed();
+}
+
+function renderSightingsFeed() {
+    const feed  = document.getElementById('sightings-feed');
+    const empty = document.getElementById('sightings-empty');
+    feed.innerHTML = '';
+    if (!sightings.length) { empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    sightings.forEach(s => feed.appendChild(buildSightingCard(s)));
+}
+
+function buildSightingCard(s) {
+    const card = document.createElement('div');
+    card.className = 'sighting-card';
+    const uid      = currentOwl?.uid;
+    const likes    = Array.isArray(s.likes) ? s.likes : [];
+    const liked    = uid && likes.includes(uid);
+    const comments = Array.isArray(s.comments) ? s.comments : [];
+    const poster   = escapeHtml(s.postedBy?.displayName || 'An Owl');
+    const date     = formatSightingDate(s.postedAt);
+    const canDelete = uid === s.postedBy?.uid || currentOwl?.isAdmin;
+    const open      = openSightingComments.has(s.id);
+    const commentsHTML = comments.slice()
+        .sort((a, b) => (tsMillis(a.ts) || 0) - (tsMillis(b.ts) || 0))
+        .map(c => `<div class="sighting-comment"><span class="sighting-comment-name">${escapeHtml(c.displayName || 'An Owl')}</span> ${escapeHtml(c.text || '')}</div>`)
+        .join('') || '<p class="sighting-comments-empty">No comments yet.</p>';
+
+    card.innerHTML = `
+        ${s.photoUrl ? `<img class="sighting-photo" src="${s.photoUrl}" alt="${escapeHtml(s.title || 'Sighting')}" loading="lazy">` : ''}
+        <div class="sighting-body">
+            ${s.title ? `<h3 class="sighting-title">${escapeHtml(s.title)}</h3>` : ''}
+            ${s.caption ? `<p class="sighting-caption">${escapeHtml(s.caption)}</p>` : ''}
+            <div class="sighting-meta">${poster} · ${date}</div>
+            <div class="sighting-actions">
+                <button class="sighting-like-btn ${liked ? 'liked' : ''}" data-id="${s.id}" data-action="like" type="button">
+                    <span class="sighting-heart">${liked ? '♥' : '♡'}</span> <span class="sighting-like-count">${likes.length}</span>
+                </button>
+                <button class="sighting-comment-btn" data-id="${s.id}" data-action="comments" type="button">
+                    💬 <span class="sighting-comment-count">${comments.length}</span>
+                </button>
+                ${canDelete ? `<button class="sighting-del-btn" data-id="${s.id}" data-action="delete" type="button">Delete</button>` : ''}
+            </div>
+            <div class="sighting-comments ${open ? '' : 'hidden'}" data-comments="${s.id}">
+                <div class="sighting-comments-list">${commentsHTML}</div>
+                <div class="sighting-comment-compose">
+                    <input type="text" class="sighting-comment-input" data-input="${s.id}" placeholder="Add a comment…" maxlength="300">
+                    <button class="sighting-comment-send" data-id="${s.id}" data-action="send-comment" type="button">Post</button>
+                </div>
+            </div>
+        </div>`;
+    return card;
+}
+
+async function toggleSightingLike(id) {
+    if (!currentOwl) return;
+    const s = sightings.find(x => x.id === id);
+    if (!s) return;
+    const uid   = currentOwl.uid;
+    const likes = Array.isArray(s.likes) ? s.likes : [];
+    const liked = likes.includes(uid);
+    s.likes = liked ? likes.filter(u => u !== uid) : [...likes, uid];
+    // Update just this card's button (no full re-render → no image flicker)
+    const btn = document.querySelector(`.sighting-like-btn[data-id="${id}"]`);
+    if (btn) {
+        btn.classList.toggle('liked', !liked);
+        btn.querySelector('.sighting-heart').textContent = liked ? '♡' : '♥';
+        btn.querySelector('.sighting-like-count').textContent = s.likes.length;
+    }
+    try {
+        await db.collection('sightings').doc(id).update({
+            likes: liked ? firebase.firestore.FieldValue.arrayRemove(uid)
+                         : firebase.firestore.FieldValue.arrayUnion(uid),
+        });
+    } catch (e) { console.error('like error:', e); }
+}
+
+function toggleSightingComments(id) {
+    if (openSightingComments.has(id)) openSightingComments.delete(id);
+    else openSightingComments.add(id);
+    const el = document.querySelector(`.sighting-comments[data-comments="${id}"]`);
+    if (el) el.classList.toggle('hidden');
+}
+
+async function postSightingComment(id) {
+    if (!currentOwl) return;
+    const input = document.querySelector(`.sighting-comment-input[data-input="${id}"]`);
+    const text  = (input?.value || '').trim();
+    if (!text) return;
+    const s = sightings.find(x => x.id === id);
+    if (!s) return;
+    const comment = {
+        uid: currentOwl.uid,
+        displayName: currentOwl.displayName || currentOwl.email,
+        text,
+        ts: firebase.firestore.Timestamp.now(),   // arrayUnion can't take serverTimestamp
+    };
+    s.comments = [...(s.comments || []), comment];
+    // Append to the DOM
+    const listEl = document.querySelector(`.sighting-comments[data-comments="${id}"] .sighting-comments-list`);
+    if (listEl) {
+        const emptyP = listEl.querySelector('.sighting-comments-empty');
+        if (emptyP) listEl.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'sighting-comment';
+        div.innerHTML = `<span class="sighting-comment-name">${escapeHtml(comment.displayName)}</span> ${escapeHtml(text)}`;
+        listEl.appendChild(div);
+    }
+    const countEl = document.querySelector(`.sighting-comment-btn[data-id="${id}"] .sighting-comment-count`);
+    if (countEl) countEl.textContent = s.comments.length;
+    input.value = '';
+    try {
+        await db.collection('sightings').doc(id).update({
+            comments: firebase.firestore.FieldValue.arrayUnion(comment),
+        });
+    } catch (e) { console.error('comment error:', e); showIssueToast('Could not post comment.'); }
+}
+
+async function deleteSighting(id) {
+    const ok = await confirmAction('Delete this sighting?', 'This removes it for everyone. This cannot be undone.', 'Delete');
+    if (!ok) return;
+    try {
+        await db.collection('sightings').doc(id).delete();
+        sightings = sightings.filter(s => s.id !== id);
+        renderSightingsFeed();
+        showIssueToast('Sighting deleted.');
+    } catch (e) { console.error('delete sighting:', e); showIssueToast('Could not delete.'); }
+}
+
+// ── Composer ──
+function openSightingComposer() {
+    if (!currentOwl) return;
+    sightingPhotoFile = null;
+    document.getElementById('sighting-title').value   = '';
+    document.getElementById('sighting-caption').value = '';
+    document.getElementById('sighting-error').textContent = '';
+    document.getElementById('sighting-photo-input').value = '';
+    document.getElementById('sighting-photo-preview').src = '';
+    document.getElementById('sighting-photo-preview').classList.add('hidden');
+    document.getElementById('sighting-photo-remove').classList.add('hidden');
+    document.getElementById('sighting-photo-btn').style.display = '';
+    document.getElementById('sighting-progress').classList.add('hidden');
+    document.getElementById('sighting-progress-fill').style.width = '0%';
+    const btn = document.getElementById('sighting-submit-btn');
+    btn.disabled = false; btn.textContent = 'Post Sighting';
+    document.getElementById('sighting-composer').classList.remove('hidden');
+}
+function closeSightingComposer() { document.getElementById('sighting-composer').classList.add('hidden'); }
+
+async function submitSighting() {
+    if (!currentOwl) return;
+    const errorEl = document.getElementById('sighting-error');
+    const btn     = document.getElementById('sighting-submit-btn');
+    const title   = document.getElementById('sighting-title').value.trim();
+    const caption = document.getElementById('sighting-caption').value.trim();
+    errorEl.textContent = '';
+    if (!sightingPhotoFile) { errorEl.textContent = 'Please add a photo.'; return; }
+
+    btn.disabled = true; btn.textContent = 'Posting…';
+    const progressEl = document.getElementById('sighting-progress');
+    const fillEl     = document.getElementById('sighting-progress-fill');
+    const labelEl    = document.getElementById('sighting-progress-label');
+    let photoUrl = null;
+    try {
+        progressEl.classList.remove('hidden'); fillEl.style.width = '0%'; labelEl.textContent = 'Compressing photo…';
+        const compressed = await compressImage(sightingPhotoFile);
+        labelEl.textContent = 'Uploading photo…';
+        photoUrl = await uploadToCloudinary(compressed, pct => { fillEl.style.width = pct + '%'; labelEl.textContent = `Uploading… ${pct}%`; });
+    } catch (e) {
+        console.error('Sighting photo upload failed:', e);
+        errorEl.textContent = 'Photo upload failed — try again or pick another photo.';
+        progressEl.classList.add('hidden');
+        btn.disabled = false; btn.textContent = 'Post Sighting';
+        return;
+    }
+    try {
+        await db.collection('sightings').add({
+            title:    title || null,
+            caption:  caption || null,
+            photoUrl,
+            postedBy: { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
+            postedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            likes:    [],
+            comments: [],
+        });
+        closeSightingComposer();
+        showIssueToast('Sighting posted ✓');
+        loadSightings();
+    } catch (e) {
+        console.error('submitSighting:', e);
+        errorEl.textContent = 'Could not post — please try again.';
+        progressEl.classList.add('hidden');
+        btn.disabled = false; btn.textContent = 'Post Sighting';
+    }
+}
+
+// ── Sightings wiring ──
+document.getElementById('sightings-resources-btn')?.addEventListener('click', openSightings);
+document.getElementById('sightings-back-btn')?.addEventListener('click', closeSightings);
+document.getElementById('sighting-new-btn')?.addEventListener('click', openSightingComposer);
+document.getElementById('sighting-submit-btn')?.addEventListener('click', submitSighting);
+document.getElementById('sighting-cancel-btn')?.addEventListener('click', closeSightingComposer);
+document.getElementById('sighting-composer-backdrop')?.addEventListener('click', closeSightingComposer);
+
+document.getElementById('sighting-photo-btn')?.addEventListener('click', () => document.getElementById('sighting-photo-input').click());
+document.getElementById('sighting-photo-input')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    sightingPhotoFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const p = document.getElementById('sighting-photo-preview');
+        p.src = ev.target.result; p.classList.remove('hidden');
+        document.getElementById('sighting-photo-remove').classList.remove('hidden');
+        document.getElementById('sighting-photo-btn').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+});
+document.getElementById('sighting-photo-remove')?.addEventListener('click', () => {
+    sightingPhotoFile = null;
+    document.getElementById('sighting-photo-input').value = '';
+    document.getElementById('sighting-photo-preview').classList.add('hidden');
+    document.getElementById('sighting-photo-remove').classList.add('hidden');
+    document.getElementById('sighting-photo-btn').style.display = '';
+});
+
+// Feed delegation: like / comments toggle / post comment / delete
+document.getElementById('sightings-feed')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    switch (btn.dataset.action) {
+        case 'like':         toggleSightingLike(id); break;
+        case 'comments':     toggleSightingComments(id); break;
+        case 'send-comment': postSightingComment(id); break;
+        case 'delete':       deleteSighting(id); break;
+    }
+});
+document.getElementById('sightings-feed')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest('.sighting-comment-input');
+    if (input) { e.preventDefault(); postSightingComment(input.dataset.input); }
 });
 
 // ── Global API ───────────────────────────────────────────────

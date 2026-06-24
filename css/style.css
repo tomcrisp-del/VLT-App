@@ -2152,6 +2152,160 @@ header {
     background: #2f7059;
 }
 
+/* ── TRAIL SIGHTINGS ── */
+#sightings-resources-item {
+    border: 2px solid #3d8b6f;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+#sightings-resources-item.hidden { display: none; }
+
+#sightings-view {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: flex;
+    flex-direction: column;
+    background: #f5f5f0;
+}
+#sightings-view.hidden { display: none; }
+#sightings-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    border-bottom: 1px solid #e6e2d8;
+}
+#sightings-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #2c5f2d;
+    font-family: inherit;
+}
+#sightings-back-btn {
+    background: none;
+    border: none;
+    color: #3d8b6f;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+}
+#sightings-content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+}
+.sighting-new-btn {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #3d8b6f;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+.sighting-new-btn:active { background: #2f7059; }
+.sighting-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border: 1px solid #ece9e1;
+    margin-bottom: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.sighting-photo {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    display: block;
+    background: #eee;
+}
+.sighting-body { padding: 12px 14px; }
+.sighting-title { margin: 0 0 4px; font-size: 1.05rem; color: #1a3d3d; }
+.sighting-caption { margin: 0 0 8px; font-size: 0.92rem; color: #444; line-height: 1.4; }
+.sighting-meta { font-size: 0.78rem; color: #999; margin-bottom: 8px; }
+.sighting-actions { display: flex; align-items: center; gap: 8px; }
+.sighting-like-btn, .sighting-comment-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f3f4f1;
+    border: 1px solid #e2e3dd;
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+}
+.sighting-like-btn.liked { color: #dc2626; border-color: #f7c5c5; background: #fff1f1; }
+.sighting-like-btn .sighting-heart { font-size: 1rem; line-height: 1; }
+.sighting-del-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #b91c1c;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+.sighting-comments { margin-top: 10px; border-top: 1px solid #f0efe9; padding-top: 8px; }
+.sighting-comments.hidden { display: none; }
+.sighting-comment { font-size: 0.88rem; color: #333; margin-bottom: 6px; line-height: 1.35; }
+.sighting-comment-name { font-weight: 700; color: #1a3d3d; }
+.sighting-comments-empty { font-size: 0.82rem; color: #aaa; font-style: italic; margin: 0 0 8px; }
+.sighting-comment-compose { display: flex; gap: 6px; margin-top: 6px; }
+.sighting-comment-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid #d8d5cc;
+    border-radius: 16px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+}
+.sighting-comment-input:focus { border-color: #3d8b6f; }
+.sighting-comment-send {
+    flex: 0 0 auto;
+    background: #3d8b6f;
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+.sightings-empty { text-align: center; color: #999; padding: 2rem 1rem; font-size: 0.95rem; }
+.sightings-empty.hidden { display: none; }
+
+#sighting-composer {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+#sighting-composer.hidden { display: none; }
+
 /* ── EVENTS VIEW ── */
 #events-view {
     position: fixed;
@@ -4916,6 +5070,69 @@ header {
     -webkit-tap-highlight-color: transparent;
 }
 .owl-contact-phone-btns a:active { background: #2c5f2d; }
+/* Card button row (Contact alone, or Info + Contact for admins) */
+.owl-card-btn-row {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    margin-top: 2px;
+}
+.owl-card-btn-row .owl-action-btn,
+.owl-card-btn-row .owl-card-contact {
+    flex: 1 1 0;
+    width: auto;
+    margin-top: 0;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+}
+
+/* Admin "Info" popup — full member profile */
+.owl-info-card { max-width: 360px; }
+.owl-info-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    text-align: left;
+}
+.owl-info-row {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0efe9;
+}
+.owl-info-row:last-child { border-bottom: none; }
+.owl-info-label {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9aa6a1;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.owl-info-val {
+    font-size: 0.9rem;
+    color: #1a3d3d;
+    line-height: 1.35;
+    white-space: pre-wrap;
+}
+
+.owl-contact-about {
+    background: #f6f7f5;
+    border: 1px solid #e6e8e3;
+    border-radius: 0.625rem;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.88rem;
+    color: #333;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    margin-bottom: 0.25rem;
+}
+.owl-contact-about-label {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9aa6a1;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
 .owl-contact-empty {
     text-align: center;
     color: #6a8a7a;
