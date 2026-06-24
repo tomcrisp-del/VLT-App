@@ -2885,6 +2885,13 @@ const FLOCK_SHOW_BADGES = false;
 // instead of preferred-trail pills.
 const STEWARD_EMAIL = 'tom.crisp@vinalhavenlandtrust.org';
 
+// Assistant stewards get the same "All Trails" pill, labeled Assistant Steward.
+// Matched case-insensitively against the signed-in email.
+const ASSISTANT_STEWARD_EMAILS = [
+    'blake.lazaro@vinalhavenschool.org',
+    'jwfh2002@gmail.com',
+];
+
 const BADGES = [
     // Welcome
     { id: 'new_owl',      icon: '🦉', name: 'New Owl',           desc: 'Welcome to the Flock',                       earn: () => true },
@@ -3207,10 +3214,13 @@ function buildOwlCard(u) {
 
     // Preferred trails — show all, up to the current cap (handles legacy
     // profiles that saved more than the new max; all of them display).
-    // Special case: the VLT steward's card shows a single steward pill.
+    // Special case: the VLT steward's card shows a single steward pill;
+    // assistant stewards show the same pill labeled "Assistant Steward".
     let prefsHTML;
     if (u.email === STEWARD_EMAIL) {
         prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Steward</span>';
+    } else if (ASSISTANT_STEWARD_EMAILS.includes((u.email || '').toLowerCase())) {
+        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Assistant Steward</span>';
     } else {
         const prefs = (u.preferredTrails || []).slice(0, PREFERRED_TRAILS_MAX);
         prefsHTML = prefs.length

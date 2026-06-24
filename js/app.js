@@ -1711,6 +1711,13 @@ function showGlobalSpeciesDetail(species) {
     natBadge.textContent = species.native ? "Native" : "Non-native";
     natBadge.className = species.native ? "native-badge" : "native-badge non-native";
 
+    // When we arrived here from a photo-ID suggestion, the back button
+    // returns to that result and an extra "Close" button exits entirely.
+    const closeBtn = document.getElementById("global-species-detail-close-btn");
+    const backBtn = document.getElementById("global-species-detail-back-btn");
+    if (closeBtn) closeBtn.classList.toggle("hidden", !identifyFromDetail);
+    if (backBtn) backBtn.textContent = identifyFromDetail ? "← Back to photo" : "← Back";
+
     detailView.scrollTop = 0;
 }
 
@@ -1761,6 +1768,18 @@ document.getElementById("wildlife-detail-back-btn").addEventListener("click", ()
 // Global species detail back button
 document.getElementById("global-species-detail-back-btn")?.addEventListener("click", () => {
     document.getElementById("global-species-detail-view").classList.add("hidden");
+    // If we came from a photo-ID suggestion, return to the results modal
+    // (showing the original photos) rather than the species list.
+    if (identifyFromDetail) {
+        document.getElementById("identify-modal")?.classList.remove("hidden");
+    }
+});
+
+// Global species detail "Close" button — only used when arriving from the
+// photo identifier; exits both the detail page and the identify modal.
+document.getElementById("global-species-detail-close-btn")?.addEventListener("click", () => {
+    document.getElementById("global-species-detail-view").classList.add("hidden");
+    closeIdentify();
 });
 
 // ── Global Wildlife List Builder ──
@@ -1806,7 +1825,7 @@ function buildGlobalWildlifeList() {
 
         card.appendChild(label);
 
-        card.addEventListener("click", () => showGlobalSpeciesDetail(species));
+        card.addEventListener("click", () => { identifyFromDetail = false; showGlobalSpeciesDetail(species); });
         listEl.appendChild(card);
     }
 }
@@ -2277,7 +2296,26 @@ window.loadKml              = loadKml;
 // show confident matches, or "No confident matches at this time."
 
 const IDENTIFY_ENDPOINT = "/.netlify/functions/identify-species";
-const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
+const IDENTIFY_MAX_DIM = 1024;     // longest edge sent to the model
+const IDENTIFY_MAX_PHOTOS = 3;     // macro / micro / stem-or-leaf
+
+// Photos staged for the current identification: { base64, mediaType, url }.
+let identifyPhotos = [];
+// True while a species detail page was opened from an ID suggestion, so its
+// Back returns to the results and an extra Close exits the whole flow.
+let identifyFromDetail = false;
+
+// Close the identify flow entirely and release any photo previews.
+function closeIdentify() {
+    document.getElementById("identify-modal")?.classList.add("hidden");
+    for (const p of identifyPhotos) { if (p.url) URL.revokeObjectURL(p.url); }
+    identifyPhotos = [];
+    identifyFromDetail = false;
+    const results = document.getElementById("identify-results");
+    const status = document.getElementById("identify-status");
+    if (results) results.innerHTML = "";
+    if (status) { status.innerHTML = ""; status.classList.remove("no-match"); }
+}
 
 (function setupIdentify() {
     const btn      = document.getElementById("wildlife-identify-btn");
@@ -2285,49 +2323,97 @@ const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
     const modal    = document.getElementById("identify-modal");
     const closeBtn = document.getElementById("identify-close-btn");
     const overlay  = modal?.querySelector(".identify-overlay");
-    const preview  = document.getElementById("identify-preview");
+    const goBtn    = document.getElementById("identify-go-btn");
+    const hint     = document.getElementById("identify-hint");
+    const photosEl = document.getElementById("identify-photos");
     const statusEl = document.getElementById("identify-status");
     const resultsEl = document.getElementById("identify-results");
 
     if (!btn || !input || !modal) return;
 
-    btn.addEventListener("click", () => input.click());
-
-    input.addEventListener("change", async () => {
-        const file = input.files && input.files[0];
-        input.value = ""; // allow re-picking the same file later
-        if (!file) return;
-        await runIdentification(file);
+    btn.addEventListener("click", () => {
+        closeIdentify();                 // start a fresh session
+        modal.classList.remove("hidden");
+        setState("collect");
     });
 
-    function closeModal() {
-        modal.classList.add("hidden");
-        if (preview.src) { URL.revokeObjectURL(preview.src); preview.removeAttribute("src"); }
-        resultsEl.innerHTML = "";
-        statusEl.innerHTML = "";
-        statusEl.classList.remove("no-match");
+    closeBtn?.addEventListener("click", closeIdentify);
+    overlay?.addEventListener("click", closeIdentify);
+
+    input.addEventListener("change", async () => {
+        const files = Array.from(input.files || []);
+        input.value = "";                // allow re-picking the same file later
+        await addPhotos(files);
+    });
+
+    goBtn?.addEventListener("click", runIdentification);
+
+    // State: 'collect' (adding photos) | 'loading' | 'results'.
+    function setState(state) {
+        const collecting = state === "collect";
+        if (hint) hint.style.display = collecting ? "" : "none";
+        if (goBtn) goBtn.style.display = collecting ? "" : "none";
+        if (statusEl) statusEl.style.display = collecting ? "none" : "";
+        if (resultsEl) resultsEl.style.display = state === "results" ? "" : "none";
+        renderPhotos(collecting);
+        if (goBtn) goBtn.disabled = identifyPhotos.length === 0;
     }
-    closeBtn?.addEventListener("click", closeModal);
-    overlay?.addEventListener("click", closeModal);
 
     function setStatus(html, isNoMatch) {
         statusEl.innerHTML = html;
         statusEl.classList.toggle("no-match", !!isNoMatch);
     }
 
-    async function runIdentification(file) {
-        resultsEl.innerHTML = "";
-        preview.src = URL.createObjectURL(file);
-        setStatus('<div class="loading-spinner"></div><span>Identifying…</span>');
-        modal.classList.remove("hidden");
-
-        let payload;
-        try {
-            payload = await downscaleToBase64(file);
-        } catch {
-            setStatus("Sorry, that image couldn’t be read. Try another photo.", true);
-            return;
+    async function addPhotos(files) {
+        const room = IDENTIFY_MAX_PHOTOS - identifyPhotos.length;
+        for (const file of files.slice(0, room)) {
+            try {
+                const p = await downscaleToBase64(file);
+                p.url = URL.createObjectURL(file);
+                identifyPhotos.push(p);
+            } catch { /* skip unreadable file */ }
         }
+        setState("collect");
+    }
+
+    function renderPhotos(editable) {
+        if (!photosEl) return;
+        photosEl.innerHTML = "";
+        identifyPhotos.forEach((p, i) => {
+            const tile = document.createElement("div");
+            tile.className = "identify-photo";
+            const img = document.createElement("img");
+            img.src = p.url;
+            tile.appendChild(img);
+            if (editable) {
+                const rm = document.createElement("button");
+                rm.type = "button";
+                rm.className = "identify-photo-remove";
+                rm.setAttribute("aria-label", "Remove photo");
+                rm.textContent = "×";
+                rm.addEventListener("click", () => {
+                    if (p.url) URL.revokeObjectURL(p.url);
+                    identifyPhotos.splice(i, 1);
+                    setState("collect");
+                });
+                tile.appendChild(rm);
+            }
+            photosEl.appendChild(tile);
+        });
+        if (editable && identifyPhotos.length < IDENTIFY_MAX_PHOTOS) {
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "identify-photo-add";
+            add.innerHTML = "<span>+</span><small>Add photo</small>";
+            add.addEventListener("click", () => input.click());
+            photosEl.appendChild(add);
+        }
+    }
+
+    async function runIdentification() {
+        if (identifyPhotos.length === 0) return;
+        setState("loading");
+        setStatus('<div class="loading-spinner"></div><span>Identifying…</span>');
 
         const species = wildlifeSpecies.map((s) => ({
             id: s.id,
@@ -2341,22 +2427,24 @@ const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    image: payload.base64,
-                    mediaType: payload.mediaType,
+                    images: identifyPhotos.map((p) => ({ base64: p.base64, mediaType: p.mediaType })),
                     species,
                 }),
             });
             if (!resp.ok) {
                 const e = await resp.json().catch(() => ({}));
+                setState("results");
                 setStatus(e.error || "Something went wrong. Please try again.", true);
                 return;
             }
             data = await resp.json();
         } catch {
+            setState("results");
             setStatus("Couldn’t reach the identifier. Check your connection and try again.", true);
             return;
         }
 
+        setState("results");
         renderResults(data.matches || []);
     }
 
@@ -2369,6 +2457,7 @@ const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
             })
             .filter(Boolean);
 
+        resultsEl.innerHTML = "";
         if (found.length === 0) {
             setStatus("No confident matches at this time.", true);
             return;
@@ -2407,7 +2496,10 @@ const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
             }
 
             row.addEventListener("click", () => {
-                closeModal();
+                // Keep the modal's DOM but hide it; open the species page.
+                // Back returns here (with the original photos), Close exits.
+                identifyFromDetail = true;
+                modal.classList.add("hidden");
                 showGlobalSpeciesDetail(species);
             });
             resultsEl.appendChild(row);
@@ -2443,3 +2535,50 @@ function downscaleToBase64(file) {
         img.src = url;
     });
 }
+
+// ── In-app Document Viewer ───────────────────────────────────
+// Resource links marked with data-doc open in a full-screen overlay that
+// has its own Back button, so a PDF/image never replaces the whole app.
+(function setupDocViewer() {
+    const viewer  = document.getElementById("doc-viewer");
+    const body    = document.getElementById("doc-viewer-body");
+    const titleEl = document.getElementById("doc-viewer-title");
+    const extEl   = document.getElementById("doc-viewer-external");
+    const backBtn = document.getElementById("doc-viewer-back");
+    if (!viewer || !body) return;
+
+    function openDoc(src, title, type) {
+        titleEl.textContent = title || "";
+        if (extEl) extEl.href = src;
+        body.innerHTML = "";
+        if (type === "image") {
+            const img = document.createElement("img");
+            img.className = "doc-viewer-image";
+            img.src = src;
+            img.alt = title || "";
+            body.appendChild(img);
+        } else {
+            const frame = document.createElement("iframe");
+            frame.className = "doc-viewer-frame";
+            frame.src = src;
+            frame.title = title || "Document";
+            body.appendChild(frame);
+        }
+        body.scrollTop = 0;
+        viewer.classList.remove("hidden");
+    }
+
+    function closeDoc() {
+        viewer.classList.add("hidden");
+        body.innerHTML = ""; // stop loading / free memory
+    }
+
+    backBtn?.addEventListener("click", closeDoc);
+
+    document.querySelectorAll(".resource-link[data-doc]").forEach((a) => {
+        a.addEventListener("click", (e) => {
+            e.preventDefault();
+            openDoc(a.getAttribute("href"), a.dataset.title, a.dataset.doc);
+        });
+    });
+})();

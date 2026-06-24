@@ -1111,6 +1111,10 @@ header {
     top: 0;
     z-index: 10;
     border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 #global-species-detail-photo {
@@ -5594,5 +5598,163 @@ header {
 .identify-confidence.medium {
     background: #e7efe0;
     color: #2c5f2d;
+}
+
+.identify-hint {
+    margin: 0;
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.identify-photos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.identify-photo {
+    position: relative;
+    width: 92px;
+    height: 92px;
+}
+
+.identify-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    background: #eee;
+}
+
+.identify-photo-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: #1a3d3d;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.identify-photo-add {
+    width: 92px;
+    height: 92px;
+    border: 2px dashed #bcd0bc;
+    border-radius: 0.5rem;
+    background: #f6faf5;
+    color: #2c5f2d;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+}
+
+.identify-photo-add span {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.identify-photo-add small {
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+.identify-go-btn {
+    width: 100%;
+    padding: 0.6rem;
+    border: none;
+    border-radius: 0.6rem;
+    background: #2c5f2d;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.identify-go-btn:disabled {
+    background: #b8c7b8;
+    cursor: default;
+}
+
+/* "Close" button on a species page reached from a photo-ID suggestion. */
+.identify-detail-close.hidden {
+    display: none;
+}
+
+/* ── In-app Document Viewer ─────────────────────────────────────── */
+#doc-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    background: #f4f4ef;
+    display: flex;
+    flex-direction: column;
+}
+
+#doc-viewer.hidden {
+    display: none;
+}
+
+.doc-viewer-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    border-bottom: 1px solid #e3e3da;
+}
+
+.doc-viewer-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    color: #1a3d3d;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-viewer-external {
+    flex-shrink: 0;
+    color: #2c5f2d;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.doc-viewer-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.doc-viewer-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.doc-viewer-image {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 

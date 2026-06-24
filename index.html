@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.23">
+    <link rel="stylesheet" href="css/style.css?v=2.25">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -185,7 +185,7 @@
             <button type="button" id="wildlife-identify-btn" class="wildlife-camera-btn" title="Identify a species from a photo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </button>
-            <input type="file" id="wildlife-identify-input" accept="image/*" capture="environment" hidden />
+            <input type="file" id="wildlife-identify-input" accept="image/*" multiple hidden />
         </div>
         <div id="global-wildlife-list"></div>
 
@@ -193,6 +193,7 @@
         <div id="global-species-detail-view" class="hidden">
             <div id="global-species-detail-header">
                 <button id="global-species-detail-back-btn" class="wildlife-nav-btn">&larr; Back</button>
+                <button id="global-species-detail-close-btn" class="wildlife-nav-btn identify-detail-close hidden" aria-label="Close">&times; Close</button>
             </div>
             <img id="global-species-detail-photo" alt="" />
             <div id="global-species-detail-content">
@@ -450,7 +451,7 @@
                 <div id="car-cruise-section" class="dropdown-content hidden">
                     <div class="resource-content">
                         <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">A comprehensive guide to exploring Vinalhaven by car, featuring scenic drives, points of interest, and local attractions.</p>
-                        <a href="Vinalhaven-Car-Cruise-Guide.pdf" target="_blank" rel="noopener" class="resource-link">📄 Download Car Cruise Guide PDF</a>
+                        <a href="Vinalhaven-Car-Cruise-Guide.pdf" target="_blank" rel="noopener" class="resource-link" data-doc="pdf" data-title="Car Cruise Guide">📄 View Car Cruise Guide</a>
                     </div>
                 </div>
             </div>
@@ -461,7 +462,7 @@
                 <div id="scavenger-hunt-section" class="dropdown-content hidden">
                     <div class="resource-content">
                         <p style="margin: 1rem 0; font-size: 0.95rem; color: #333;">A fun scavenger hunt worksheet for kids to use while exploring Vinalhaven's trails. Print it out and bring it along!</p>
-                        <a href="vlt all trails Scavenger Hunt Worksheet.jpg" target="_blank" class="resource-link">🖨️ View &amp; Print Scavenger Hunt</a>
+                        <a href="vlt all trails Scavenger Hunt Worksheet.jpg" target="_blank" class="resource-link" data-doc="image" data-title="Kids Scavenger Hunt">🖨️ View &amp; Print Scavenger Hunt</a>
                     </div>
                 </div>
             </div>
@@ -1182,21 +1183,33 @@
         <div class="identify-card">
             <button type="button" id="identify-close-btn" class="identify-close" aria-label="Close">&times;</button>
             <h2 class="identify-title">Identify a Species</h2>
-            <img id="identify-preview" class="identify-preview" alt="Your photo" />
+            <p id="identify-hint" class="identify-hint">Add up to 3 photos of the same plant or animal &mdash; e.g. the whole plant, a close-up, and a leaf or stem.</p>
+            <div id="identify-photos" class="identify-photos"></div>
+            <button type="button" id="identify-go-btn" class="identify-go-btn" disabled>Identify</button>
             <div id="identify-status" class="identify-status"></div>
             <div id="identify-results" class="identify-results"></div>
         </div>
     </div>
 
+    <!-- In-app Document Viewer (PDFs / images) with a Back button -->
+    <div id="doc-viewer" class="hidden">
+        <div class="doc-viewer-header">
+            <button type="button" id="doc-viewer-back" class="wildlife-nav-btn">&larr; Back</button>
+            <span id="doc-viewer-title" class="doc-viewer-title"></span>
+            <a id="doc-viewer-external" class="doc-viewer-external" target="_blank" rel="noopener" title="Open in a new tab">Open ↗</a>
+        </div>
+        <div id="doc-viewer-body" class="doc-viewer-body"></div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.23"></script>
-    <script src="js/app.js?v=2.23"></script>
+    <script src="js/wildlife-data.js?v=2.25"></script>
+    <script src="js/app.js?v=2.25"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.23"></script>
+    <script src="js/owls.js?v=2.25"></script>
 </body>
 </html>

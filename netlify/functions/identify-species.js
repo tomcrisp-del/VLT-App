@@ -10,10 +10,11 @@
 // ============================================================
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-haiku-4-5-20251001";
+const MODEL = "claude-sonnet-4-6";
 
 // Safety caps so a bad/abusive request can't inflate cost.
-const MAX_IMAGE_CHARS = 7_000_000; // ~5 MB of base64
+const MAX_IMAGE_CHARS = 7_000_000; // ~5 MB of base64, per image
+const MAX_IMAGES = 3;
 const MAX_SPECIES = 1500;
 
 const ALLOWED_MEDIA = new Set([
@@ -48,16 +49,22 @@ exports.handler = async (event) => {
         return json(400, { error: "Invalid request." });
     }
 
-    const { image, mediaType, species } = body;
+    const { images, species } = body;
 
-    if (typeof image !== "string" || !image) {
+    if (!Array.isArray(images) || images.length === 0) {
         return json(400, { error: "Missing photo." });
     }
-    if (image.length > MAX_IMAGE_CHARS) {
-        return json(413, { error: "Photo is too large." });
-    }
-    if (!ALLOWED_MEDIA.has(mediaType)) {
-        return json(400, { error: "Unsupported image type." });
+    const photos = images.slice(0, MAX_IMAGES);
+    for (const p of photos) {
+        if (!p || typeof p.base64 !== "string" || !p.base64) {
+            return json(400, { error: "Invalid photo." });
+        }
+        if (p.base64.length > MAX_IMAGE_CHARS) {
+            return json(413, { error: "A photo is too large." });
+        }
+        if (!ALLOWED_MEDIA.has(p.mediaType)) {
+            return json(400, { error: "Unsupported image type." });
+        }
     }
     if (!Array.isArray(species) || species.length === 0) {
         return json(400, { error: "Missing species list." });
@@ -76,47 +83,48 @@ exports.handler = async (event) => {
         "Below is the COMPLETE list of species known to occur on Vinalhaven. " +
         "Each line is: id<TAB>Common Name (Scientific name).\n\n" +
         "Rules:\n" +
-        "1. Identify the main organism in the photo using ONLY species from this list.\n" +
-        "2. Never invent or return a species that is not on the list.\n" +
-        "3. Return up to 3 candidates, ranked best first, each with its exact id.\n" +
-        '4. Assign confidence: "high" (clearly this species), "medium" (a likely match), ' +
+        "1. The photos all show the SAME single organism, possibly from different " +
+        "angles (e.g. whole plant, a close-up, a leaf or stem). Identify that one organism.\n" +
+        "2. Look closely at distinctive features — leaf shape and arrangement, stem, " +
+        "flower or fruit, bark, overall form — before deciding.\n" +
+        "3. Identify it using ONLY species from this list. Never invent or return a " +
+        "species that is not on the list.\n" +
+        "4. Return up to 3 candidates, ranked best first, each with its exact id.\n" +
+        '5. Assign confidence: "high" (clearly this species), "medium" (a likely match), ' +
         'or "low" (uncertain, poor photo, or no good match on the list).\n' +
-        "5. If you cannot match the photo to a listed species at medium or high " +
+        "6. If you cannot match the photos to a listed species at medium or high " +
         "confidence, return an empty matches array.\n" +
-        '6. Respond with ONLY valid JSON, no prose: ' +
+        '7. Respond with ONLY valid JSON, no prose: ' +
         '{"matches":[{"id":"...","confidence":"high|medium|low"}]}\n\n' +
         "SPECIES LIST:\n" +
         menu;
 
+    const content = [
+        {
+            type: "text",
+            text: rules,
+            cache_control: { type: "ephemeral" },
+        },
+    ];
+    for (const p of photos) {
+        content.push({
+            type: "image",
+            source: { type: "base64", media_type: p.mediaType, data: p.base64 },
+        });
+    }
+    content.push({
+        type: "text",
+        text:
+            (photos.length > 1
+                ? "The photos above all show the same organism. "
+                : "") +
+            "Identify it using only the species list above. Respond with JSON only.",
+    });
+
     const requestBody = {
         model: MODEL,
         max_tokens: 300,
-        messages: [
-            {
-                role: "user",
-                content: [
-                    {
-                        type: "text",
-                        text: rules,
-                        cache_control: { type: "ephemeral" },
-                    },
-                    {
-                        type: "image",
-                        source: {
-                            type: "base64",
-                            media_type: mediaType,
-                            data: image,
-                        },
-                    },
-                    {
-                        type: "text",
-                        text:
-                            "Identify the organism in this photo using only the " +
-                            "species list above. Respond with JSON only.",
-                    },
-                ],
-            },
-        ],
+        messages: [{ role: "user", content }],
     };
 
     let resp;
