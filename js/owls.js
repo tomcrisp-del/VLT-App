@@ -1571,7 +1571,7 @@ function buildTaskCard(task, opts = {}) {
             </div>
             <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
             ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
-            ${task.reportedPhotoUrl ? `<img class="task-card-photo" src="${task.reportedPhotoUrl}" alt="Reported photo" loading="lazy">` : ''}
+            ${task.reportedPhotoUrl ? `<div class="img-loading"><img class="task-card-photo" src="${task.reportedPhotoUrl}" alt="Reported photo" loading="lazy" onload="this.parentElement.classList.add('loaded')" onerror="this.parentElement.classList.add('loaded')"></div>` : ''}
             <div class="task-card-meta-line">
                 ${showTrail && task.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(task.trailName))}</span>` : ''}
                 ${reportedBy ? `<span class="task-card-by">Reported by ${escapeHtml(reportedBy)}</span>` : ''}
@@ -2547,7 +2547,7 @@ function buildAdminIssueCard(issue) {
             </div>
             <h3 class="task-card-title">${escapeHtml(issue.title || '(untitled)')}</h3>
             ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
-            ${issue.reportedPhotoUrl ? `<img class="task-card-photo admin-reported-photo" src="${issue.reportedPhotoUrl}" alt="Reported photo" loading="lazy">` : ''}
+            ${issue.reportedPhotoUrl ? `<div class="img-loading"><img class="task-card-photo admin-reported-photo" src="${issue.reportedPhotoUrl}" alt="Reported photo" loading="lazy" onload="this.parentElement.classList.add('loaded')" onerror="this.parentElement.classList.add('loaded')"></div>` : ''}
             <div class="task-card-meta-line">
                 ${issue.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(issue.trailName))}</span>` : ''}
                 ${reporter ? `<span class="task-card-by">Reported by ${escapeHtml(reporter)}</span>` : ''}
@@ -3438,7 +3438,7 @@ function buildSightingCard(s) {
         .join('') || '<p class="sighting-comments-empty">No comments yet.</p>';
 
     card.innerHTML = `
-        ${s.photoUrl ? `<img class="sighting-photo" src="${s.photoUrl}" alt="${escapeHtml(s.title || 'Sighting')}" loading="lazy">` : ''}
+        ${s.photoUrl ? `<div class="img-loading"><img class="sighting-photo" src="${s.photoUrl}" alt="${escapeHtml(s.title || 'Sighting')}" loading="lazy" onload="this.parentElement.classList.add('loaded')" onerror="this.parentElement.classList.add('loaded')"></div>` : ''}
         <div class="sighting-body">
             ${s.title ? `<h3 class="sighting-title">${escapeHtml(s.title)}</h3>` : ''}
             ${s.caption ? `<p class="sighting-caption">${escapeHtml(s.caption)}</p>` : ''}

@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.1.9";
+const APP_VERSION = "1.2.0";
 
 const properties = [
     {
@@ -1909,6 +1909,9 @@ async function showProperty(prop) {
         if (loader) loader.classList.add('hidden');
     });
     L.control.zoom({ position: "bottomright" }).addTo(detailMap);
+    // "My Location" on a single-preserve map — no snap (already in one preserve),
+    // just center on the user and drop the blue dot.
+    detailMap.addControl(makeLocateControl(() => detailMap, false));
     const ExpandControl = L.Control.extend({
         options: { position: "topleft" },
         onAdd: function () {
@@ -2030,25 +2033,8 @@ function initAllMap() {
     L.control.zoom({ position: "bottomright" }).addTo(allMap);
 
     // "My Location" button — locate the user; snap into the preserve they're
-    // standing in, or just center the map on them.
-    const LocateControl = L.Control.extend({
-        options: { position: "bottomright" },
-        onAdd: function () {
-            const btn = L.DomUtil.create("button", "map-locate-btn");
-            btn.type = "button";
-            btn.title = "My Location";
-            btn.setAttribute("aria-label", "My Location");
-            btn.innerHTML =
-                '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>';
-            L.DomEvent.disableClickPropagation(btn);
-            L.DomEvent.on(btn, "click", function (e) {
-                L.DomEvent.stop(e);
-                locateMe(btn);
-            });
-            return btn;
-        },
-    });
-    allMap.addControl(new LocateControl());
+    // standing in (allowSnap), or just center the map on them.
+    allMap.addControl(makeLocateControl(() => allMap, true));
 
     const AllLegendControl = L.Control.extend({
         options: { position: "bottomleft" },
@@ -2164,53 +2150,90 @@ function findContainingProperty(lat, lng) {
     return null;
 }
 
-// "My Location" button handler on the island map: locate the user, snap them
-// into the preserve they're standing in, or just center the map on them.
+function locationDotIcon() {
+    return L.divIcon({ className: "location-dot", iconSize: [18, 18], iconAnchor: [9, 9] });
+}
+
+// Place/refresh the blue dot on a specific map. Reused by the live tracker
+// AND the My Location button so the dot is always on the visible map.
+function showLocationDot(map, lat, lng) {
+    if (!map) return;
+    const latlng = [lat, lng];
+    if (locationMarker) {
+        locationMarker.setLatLng(latlng);
+        if (!map.hasLayer(locationMarker)) locationMarker.addTo(map);
+    } else {
+        locationMarker = L.marker(latlng, { icon: locationDotIcon(), zIndexOffset: 1000 }).addTo(map);
+    }
+    activeMap = map;
+}
+
+// "My Location" button. On the island map (allowSnap) it snaps into the
+// preserve you're standing in; otherwise it just centers + drops the dot.
+// If a fresh fix fails, it falls back to the live tracker's last position so
+// the dot still appears instead of silently doing nothing.
 let locating = false;
-function locateMe(btn) {
-    if (locating) return;
+function locateMe(btn, map, allowSnap) {
+    map = map || allMap;
     if (!navigator.geolocation) {
         console.log("Location isn't available on this device.");
         return;
     }
+    if (locating) return;
     locating = true;
     if (btn) btn.classList.add("locating");
+
+    const place = (lat, lng) => {
+        if (allowSnap) {
+            const prop = findContainingProperty(lat, lng);
+            if (prop) { navigateToPropertyFromAllTrails(prop); return; }
+        }
+        map.setView([lat, lng], Math.max(map.getZoom() || 15, 15));
+        showLocationDot(map, lat, lng);
+    };
+
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             locating = false;
             if (btn) btn.classList.remove("locating");
-            const lat = pos.coords.latitude, lng = pos.coords.longitude;
-            const prop = findContainingProperty(lat, lng);
-            if (prop) {
-                // Standing inside a preserve → snap into its trail page.
-                navigateToPropertyFromAllTrails(prop);
-                return;
-            }
-            // Not in any preserve → center the island map on the user.
-            if (allMap) {
-                allMap.setView([lat, lng], Math.max(allMap.getZoom(), 15));
-                const latlng = [lat, lng];
-                if (locationMarker) {
-                    locationMarker.setLatLng(latlng);
-                } else {
-                    locationMarker = L.marker(latlng, {
-                        icon: L.divIcon({ className: "location-dot", iconSize: [18, 18], iconAnchor: [9, 9] }),
-                        zIndexOffset: 1000,
-                    }).addTo(allMap);
-                }
-            }
+            place(pos.coords.latitude, pos.coords.longitude);
         },
         (err) => {
             locating = false;
             if (btn) btn.classList.remove("locating");
+            // Fallback: use the live tracker's most recent fix if we have one.
+            if (locationMarker) {
+                const ll = locationMarker.getLatLng();
+                place(ll.lat, ll.lng);
+                return;
+            }
             const msg = err.code === 1
                 ? "Location permission denied. Enable it in Settings to use this."
                 : "Couldn't get your location — try again outdoors.";
             if (typeof window.showIssueToast === "function") window.showIssueToast(msg);
             else console.log(msg);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
     );
+}
+
+// Reusable "My Location" map control. getMap() is a getter so it always
+// targets the current map (the detail map is recreated per preserve).
+function makeLocateControl(getMap, allowSnap) {
+    const Ctl = L.Control.extend({
+        options: { position: "bottomright" },
+        onAdd: function () {
+            const btn = L.DomUtil.create("button", "map-locate-btn");
+            btn.type = "button";
+            btn.title = "My Location";
+            btn.setAttribute("aria-label", "My Location");
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>';
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, "click", function (e) { L.DomEvent.stop(e); locateMe(btn, getMap(), allowSnap); });
+            return btn;
+        },
+    });
+    return new Ctl();
 }
 
 function startLocationTracking(targetMap) {
@@ -2220,19 +2243,7 @@ function startLocationTracking(targetMap) {
 
     watchId = navigator.geolocation.watchPosition(
         (pos) => {
-            const latlng = [pos.coords.latitude, pos.coords.longitude];
-            if (locationMarker) {
-                locationMarker.setLatLng(latlng);
-            } else {
-                locationMarker = L.marker(latlng, {
-                    icon: L.divIcon({
-                        className: "location-dot",
-                        iconSize: [18, 18],
-                        iconAnchor: [9, 9],
-                    }),
-                    zIndexOffset: 1000,
-                }).addTo(activeMap);
-            }
+            showLocationDot(activeMap, pos.coords.latitude, pos.coords.longitude);
         },
         (err) => {
             console.log("Geolocation error:", err.message);

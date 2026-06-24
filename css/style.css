@@ -1561,6 +1561,35 @@ header {
     to { transform: rotate(360deg); }
 }
 
+/* Reusable image loading state — shows a spinner until the image loads,
+   so network photos never appear as a blank box. Add class "loaded" (via the
+   img's onload) to reveal the image and remove the spinner. */
+.img-loading {
+    position: relative;
+    min-height: 200px;
+    background: #eef0ec;
+    overflow: hidden;
+}
+.img-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border: 3px solid #d3d8d1;
+    border-top-color: #3d8b6f;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+.img-loading.loaded {
+    min-height: 0;
+    background: transparent;
+}
+.img-loading.loaded::after { display: none; }
+.img-loading > img { display: block; width: 100%; }
+
 .loading-text {
     font-size: 0.9rem;
     color: #666;
