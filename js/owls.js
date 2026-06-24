@@ -837,12 +837,13 @@ let currentDetailIssue   = null;  // issue data object currently shown in detail
 let currentDetailIssueId = null;
 
 const CATEGORY_LABELS = {
-    hazard:   'Safety Hazard',
-    blowdown: 'Blow Down',
-    invasive: 'Invasive Species',
-    signage:  'Signage',
-    trash:    'Trash / Litter',
-    other:    'Other',
+    hazard:    'Safety Hazard',
+    blowdown:  'Blow Down',
+    invasive:  'Invasive Species',
+    overgrown: 'Overgrown Vegetation',
+    signage:   'Signage',
+    trash:     'Trash / Litter',
+    other:     'Other',
     // Legacy values from before category cleanup — kept so old issues still render
     erosion:     'Erosion / Washout',
     maintenance: 'Trail Maintenance',
@@ -2467,7 +2468,7 @@ const STATUS_LABEL = {
     pending_approval: 'Pending Approval',
     open:             'Open',
     claimed:          'Claimed',
-    pending_review:   'Review',
+    pending_review:   'Fixed · Needs Review',
     resolved:         'Resolved',
 };
 
@@ -2493,14 +2494,19 @@ function buildAdminIssueCard(issue) {
 
     if (expired) card.classList.add('admin-issue-card-expired');
 
-    // Visual evidence (legacy completion submissions only — new flow has no review step)
+    // Volunteer-fixed, awaiting admin sign-off — highlight it clearly so the
+    // admin can tell it apart from open/resolved issues at a glance.
     let reviewBlock = '';
     if (isPendingReview) {
+        card.classList.add('admin-issue-card-fixed');
+        const who   = issue.completedBy?.displayName ? escapeHtml(issue.completedBy.displayName) : 'a volunteer';
         const note  = issue.completionNote
             ? `<p class="task-completion-note">"${escapeHtml(issue.completionNote)}"</p>` : '';
         const photo = issue.completionPhotoUrl
-            ? `<img class="task-completion-thumb" src="${issue.completionPhotoUrl}" alt="Completion photo">` : '';
-        if (note || photo) reviewBlock = `<div class="admin-issue-review">${note}${photo}</div>`;
+            ? `<img class="task-completion-thumb" src="${issue.completionPhotoUrl}" alt="Fix photo">` : '';
+        reviewBlock = `<div class="admin-issue-review">
+            <div class="admin-fixed-banner">🛠 Marked fixed by ${who} — tap “Mark Resolved” to confirm</div>
+            ${note}${photo}</div>`;
     }
 
     // Per-status admin actions. "Edit" is available on every issue.
