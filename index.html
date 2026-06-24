@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.22">
+    <link rel="stylesheet" href="css/style.css?v=2.23">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -182,9 +182,10 @@
         </div>
         <div class="wildlife-search-bar">
             <input type="text" id="global-wildlife-search" class="wildlife-search-input" placeholder="Search species..." />
-            <a href="https://www.inaturalist.org/observations/identify" target="_blank" rel="noopener" class="wildlife-camera-btn" title="Identify with iNaturalist">
+            <button type="button" id="wildlife-identify-btn" class="wildlife-camera-btn" title="Identify a species from a photo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </a>
+            </button>
+            <input type="file" id="wildlife-identify-input" accept="image/*" capture="environment" hidden />
         </div>
         <div id="global-wildlife-list"></div>
 
@@ -1175,15 +1176,27 @@
         </div>
     </div>
 
+    <!-- Photo Identification Modal -->
+    <div id="identify-modal" class="hidden">
+        <div class="identify-overlay"></div>
+        <div class="identify-card">
+            <button type="button" id="identify-close-btn" class="identify-close" aria-label="Close">&times;</button>
+            <h2 class="identify-title">Identify a Species</h2>
+            <img id="identify-preview" class="identify-preview" alt="Your photo" />
+            <div id="identify-status" class="identify-status"></div>
+            <div id="identify-results" class="identify-results"></div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.22"></script>
-    <script src="js/app.js?v=2.22"></script>
+    <script src="js/wildlife-data.js?v=2.23"></script>
+    <script src="js/app.js?v=2.23"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.22"></script>
+    <script src="js/owls.js?v=2.23"></script>
 </body>
 </html>

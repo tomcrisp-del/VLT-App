@@ -5436,3 +5436,163 @@ header {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* ── Photo Identification Modal ────────────────────────────────── */
+#identify-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#identify-modal.hidden {
+    display: none;
+}
+
+.identify-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+}
+
+.identify-card {
+    position: relative;
+    background: #fff;
+    border-radius: 0.75rem;
+    padding: 1.5rem 1.25rem 1.375rem;
+    width: min(90vw, 380px);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.identify-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.65rem;
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: #999;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.identify-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a3d3d;
+    text-align: center;
+    margin: 0;
+}
+
+.identify-preview {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    background: #eee;
+}
+
+.identify-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: center;
+    color: #555;
+    font-size: 0.95rem;
+    min-height: 1.2rem;
+}
+
+.identify-status .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+}
+
+.identify-status.no-match {
+    color: #888;
+    font-style: italic;
+}
+
+.identify-results {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.identify-result {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.5rem;
+    border: 1.5px solid #e3e3da;
+    border-radius: 0.6rem;
+    cursor: pointer;
+    text-align: left;
+    background: #fff;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.identify-result:hover,
+.identify-result:active {
+    background: #f4f8f3;
+    border-color: #2c5f2d;
+}
+
+.identify-result img {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 0.4rem;
+    flex-shrink: 0;
+    background: #eee;
+}
+
+.identify-result-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.identify-result-name {
+    font-weight: 600;
+    color: #1a3d3d;
+    font-size: 0.98rem;
+}
+
+.identify-result-sci {
+    font-style: italic;
+    color: #777;
+    font-size: 0.82rem;
+}
+
+.identify-confidence {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 0.18rem 0.45rem;
+    border-radius: 0.35rem;
+}
+
+.identify-confidence.high {
+    background: #2c5f2d;
+    color: #fff;
+}
+
+.identify-confidence.medium {
+    background: #e7efe0;
+    color: #2c5f2d;
+}
+

@@ -2270,3 +2270,176 @@ window.getAllProperties     = () => properties;
 window.showProperty         = showProperty;
 window.propPath             = propPath;
 window.loadKml              = loadKml;
+
+// ── Photo Species Identification ─────────────────────────────
+// Camera button → pick/snap a photo → Claude identifies it against the
+// Vinalhaven species list (via the identify-species Netlify function) →
+// show confident matches, or "No confident matches at this time."
+
+const IDENTIFY_ENDPOINT = "/.netlify/functions/identify-species";
+const IDENTIFY_MAX_DIM = 1024; // longest edge sent to the model
+
+(function setupIdentify() {
+    const btn      = document.getElementById("wildlife-identify-btn");
+    const input    = document.getElementById("wildlife-identify-input");
+    const modal    = document.getElementById("identify-modal");
+    const closeBtn = document.getElementById("identify-close-btn");
+    const overlay  = modal?.querySelector(".identify-overlay");
+    const preview  = document.getElementById("identify-preview");
+    const statusEl = document.getElementById("identify-status");
+    const resultsEl = document.getElementById("identify-results");
+
+    if (!btn || !input || !modal) return;
+
+    btn.addEventListener("click", () => input.click());
+
+    input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        input.value = ""; // allow re-picking the same file later
+        if (!file) return;
+        await runIdentification(file);
+    });
+
+    function closeModal() {
+        modal.classList.add("hidden");
+        if (preview.src) { URL.revokeObjectURL(preview.src); preview.removeAttribute("src"); }
+        resultsEl.innerHTML = "";
+        statusEl.innerHTML = "";
+        statusEl.classList.remove("no-match");
+    }
+    closeBtn?.addEventListener("click", closeModal);
+    overlay?.addEventListener("click", closeModal);
+
+    function setStatus(html, isNoMatch) {
+        statusEl.innerHTML = html;
+        statusEl.classList.toggle("no-match", !!isNoMatch);
+    }
+
+    async function runIdentification(file) {
+        resultsEl.innerHTML = "";
+        preview.src = URL.createObjectURL(file);
+        setStatus('<div class="loading-spinner"></div><span>Identifying…</span>');
+        modal.classList.remove("hidden");
+
+        let payload;
+        try {
+            payload = await downscaleToBase64(file);
+        } catch {
+            setStatus("Sorry, that image couldn’t be read. Try another photo.", true);
+            return;
+        }
+
+        const species = wildlifeSpecies.map((s) => ({
+            id: s.id,
+            commonName: s.commonName,
+            scientificName: s.scientificName,
+        }));
+
+        let data;
+        try {
+            const resp = await fetch(IDENTIFY_ENDPOINT, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    image: payload.base64,
+                    mediaType: payload.mediaType,
+                    species,
+                }),
+            });
+            if (!resp.ok) {
+                const e = await resp.json().catch(() => ({}));
+                setStatus(e.error || "Something went wrong. Please try again.", true);
+                return;
+            }
+            data = await resp.json();
+        } catch {
+            setStatus("Couldn’t reach the identifier. Check your connection and try again.", true);
+            return;
+        }
+
+        renderResults(data.matches || []);
+    }
+
+    function renderResults(matches) {
+        // Map returned ids back to full species records.
+        const found = matches
+            .map((m) => {
+                const sp = wildlifeSpecies.find((s) => s.id === m.id);
+                return sp ? { species: sp, confidence: m.confidence } : null;
+            })
+            .filter(Boolean);
+
+        if (found.length === 0) {
+            setStatus("No confident matches at this time.", true);
+            return;
+        }
+
+        setStatus(found.length === 1 ? "Best match:" : "Possible matches:");
+
+        for (const { species, confidence } of found) {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "identify-result";
+
+            const img = document.createElement("img");
+            img.alt = species.commonName;
+            img.loading = "lazy";
+            img.src = "Wildlife/" + species.folder + "/" + species.photo;
+            row.appendChild(img);
+
+            const text = document.createElement("div");
+            text.className = "identify-result-text";
+            const name = document.createElement("span");
+            name.className = "identify-result-name";
+            name.textContent = species.commonName;
+            const sci = document.createElement("span");
+            sci.className = "identify-result-sci";
+            sci.textContent = species.scientificName;
+            text.appendChild(name);
+            text.appendChild(sci);
+            row.appendChild(text);
+
+            if (confidence === "high" || confidence === "medium") {
+                const badge = document.createElement("span");
+                badge.className = "identify-confidence " + confidence;
+                badge.textContent = confidence === "high" ? "Likely" : "Maybe";
+                row.appendChild(badge);
+            }
+
+            row.addEventListener("click", () => {
+                closeModal();
+                showGlobalSpeciesDetail(species);
+            });
+            resultsEl.appendChild(row);
+        }
+    }
+})();
+
+// Downscale an image file to a JPEG no larger than IDENTIFY_MAX_DIM on its
+// longest edge, returned as base64 (no data-URL prefix) plus its media type.
+function downscaleToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            const scale = Math.min(1, IDENTIFY_MAX_DIM / Math.max(width, height));
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            const base64 = dataUrl.split(",")[1];
+            if (!base64) { reject(new Error("encode failed")); return; }
+            resolve({ base64, mediaType: "image/jpeg" });
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
+        img.src = url;
+    });
+}

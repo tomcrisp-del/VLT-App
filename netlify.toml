@@ -7,6 +7,12 @@
 [build.environment]
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyA7pGNhM6aX96v5A34EFZnV4UnV6056jGE"
 
+# ── Serverless functions ────────────────────────────────────────────
+# identify-species.js proxies photo identification to Claude's vision API,
+# keeping the ANTHROPIC_API_KEY secret server-side.
+[functions]
+  directory = "netlify/functions"
+
 # ── Caching strategy ────────────────────────────────────────────────
 # HTML is always revalidated so phones pick up new deploys immediately.
 # Everything the HTML points at is cached for speed:
