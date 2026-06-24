@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 
 const properties = [
     {
@@ -1991,19 +1991,35 @@ const trailColor = "#ff4444";
 function initAllMap() {
     if (allMap) return;
     allMap = L.map("all-map", { zoomControl: false });
-    const allTileLayer = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-        {
-            attribution: "Map data &copy; Google",
-            maxZoom: 20,
-        }
-    ).addTo(allMap);
 
-    // Hide loading indicator when tile layer loads
+    // Two base layers the user can toggle between.
+    const satelliteLayer = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        { attribution: "Map data &copy; Google", maxZoom: 20 }
+    );
+    // USGS topographic quads — contour lines, reliable, no API key. maxNativeZoom
+    // lets it upscale past its native zoom so it stays usable at the satellite's
+    // deeper zoom levels instead of going blank.
+    const topoLayer = L.tileLayer(
+        "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "Tiles &copy; USGS The National Map", maxNativeZoom: 16, maxZoom: 20 }
+    );
+
+    const allTileLayer = satelliteLayer.addTo(allMap); // satellite is the default
+
+    // Hide loading indicator when the active base layer first loads
     allTileLayer.on('load', function() {
         const loader = document.querySelector('#all-map .map-loading');
         if (loader) loader.classList.add('hidden');
     });
+
+    // Always-expanded base-layer switcher (Satellite / Topographic)
+    L.control.layers(
+        { "Satellite": satelliteLayer, "Topographic": topoLayer },
+        null,
+        { position: "topright", collapsed: false }
+    ).addTo(allMap);
+
     L.control.zoom({ position: "bottomright" }).addTo(allMap);
 
     const AllLegendControl = L.Control.extend({
