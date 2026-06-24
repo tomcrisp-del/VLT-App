@@ -2287,8 +2287,19 @@ header {
 }
 .sighting-like-btn.liked { color: #dc2626; border-color: #f7c5c5; background: #fff1f1; }
 .sighting-like-btn .sighting-heart { font-size: 1rem; line-height: 1; }
-.sighting-del-btn {
+.sighting-edit-btn {
     margin-left: auto;
+    background: none;
+    border: none;
+    color: #2c5f2d;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.sighting-del-btn {
+    margin-left: 0.75rem;
     background: none;
     border: none;
     color: #b91c1c;

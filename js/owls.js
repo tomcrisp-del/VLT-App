@@ -3220,7 +3220,7 @@ function buildOwlCard(u) {
     if (u.email === STEWARD_EMAIL) {
         prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Steward</span>';
     } else if (ASSISTANT_STEWARD_EMAILS.includes((u.email || '').toLowerCase())) {
-        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>ASST. Steward</span>';
+        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>Asst. Steward</span>';
     } else {
         const prefs = (u.preferredTrails || []).slice(0, PREFERRED_TRAILS_MAX);
         prefsHTML = prefs.length
@@ -3397,6 +3397,8 @@ document.getElementById('flock-list')?.addEventListener('click', (e) => {
 // ============================================================
 let sightings = [];
 let sightingPhotoFile = null;
+let editingSightingId = null;         // id when editing an existing note, else null
+let editingExistingPhotoUrl = null;   // keep the original photo unless a new one is picked
 const openSightingComments = new Set();   // sighting ids with comments expanded
 
 function formatSightingDate(ts) {
@@ -3466,6 +3468,7 @@ function buildSightingCard(s) {
                 <button class="sighting-comment-btn" data-id="${s.id}" data-action="comments" type="button">
                     💬 <span class="sighting-comment-count">${comments.length}</span>
                 </button>
+                ${canDelete ? `<button class="sighting-edit-btn" data-id="${s.id}" data-action="edit" type="button">Edit</button>` : ''}
                 ${canDelete ? `<button class="sighting-del-btn" data-id="${s.id}" data-action="delete" type="button">Delete</button>` : ''}
             </div>
             <div class="sighting-comments ${open ? '' : 'hidden'}" data-comments="${s.id}">
@@ -3554,77 +3557,119 @@ async function deleteSighting(id) {
     } catch (e) { console.error('delete sighting:', e); showIssueToast('Could not delete.'); }
 }
 
+// Open the composer for a note the current user is allowed to edit.
+function editSighting(id) {
+    const s = sightings.find(x => x.id === id);
+    if (!s) return;
+    if (!(currentOwl?.uid === s.postedBy?.uid || currentOwl?.isAdmin)) return;
+    openSightingComposer(s);
+}
+
 // ── Composer ──
-function openSightingComposer() {
+// Pass a note object to edit it; call with no argument to create a new one.
+function openSightingComposer(edit) {
     if (!currentOwl) return;
+    const editing = !!(edit && edit.id);
+    editingSightingId = editing ? edit.id : null;
+    editingExistingPhotoUrl = editing ? (edit.photoUrl || null) : null;
     sightingPhotoFile = null;
-    document.getElementById('sighting-title').value   = '';
-    document.getElementById('sighting-caption').value = '';
+    document.getElementById('sighting-title').value   = editing ? (edit.title || '') : '';
+    document.getElementById('sighting-caption').value = editing ? (edit.caption || '') : '';
     document.getElementById('sighting-error').textContent = '';
     document.getElementById('sighting-photo-input').value = '';
-    document.getElementById('sighting-photo-preview').src = '';
-    document.getElementById('sighting-photo-preview').classList.add('hidden');
-    document.getElementById('sighting-photo-remove').classList.add('hidden');
-    document.getElementById('sighting-photo-btn').style.display = '';
+
+    const preview = document.getElementById('sighting-photo-preview');
+    const removeBtn = document.getElementById('sighting-photo-remove');
+    const addBtn = document.getElementById('sighting-photo-btn');
+    if (editing && editingExistingPhotoUrl) {
+        preview.src = editingExistingPhotoUrl;
+        preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
+        addBtn.style.display = 'none';
+    } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+        removeBtn.classList.add('hidden');
+        addBtn.style.display = '';
+    }
+
     document.getElementById('sighting-progress').classList.add('hidden');
     document.getElementById('sighting-progress-fill').style.width = '0%';
+    const titleEl = document.querySelector('#sighting-composer .issue-form-title');
+    if (titleEl) titleEl.textContent = editing ? 'Edit Note' : 'Post a Note';
     const btn = document.getElementById('sighting-submit-btn');
-    btn.disabled = false; btn.textContent = 'Post Note';
+    btn.disabled = false; btn.textContent = editing ? 'Save Changes' : 'Post Note';
     document.getElementById('sighting-composer').classList.remove('hidden');
 }
 function closeSightingComposer() { document.getElementById('sighting-composer').classList.add('hidden'); }
 
 async function submitSighting() {
     if (!currentOwl) return;
+    const editing = !!editingSightingId;
+    const restLabel = editing ? 'Save Changes' : 'Post Note';
     const errorEl = document.getElementById('sighting-error');
     const btn     = document.getElementById('sighting-submit-btn');
     const title   = document.getElementById('sighting-title').value.trim();
     const caption = document.getElementById('sighting-caption').value.trim();
     errorEl.textContent = '';
-    if (!sightingPhotoFile) { errorEl.textContent = 'Please add a photo.'; return; }
+    if (!sightingPhotoFile && !editingExistingPhotoUrl) { errorEl.textContent = 'Please add a photo.'; return; }
 
-    btn.disabled = true; btn.textContent = 'Posting…';
+    btn.disabled = true; btn.textContent = editing ? 'Saving…' : 'Posting…';
     const progressEl = document.getElementById('sighting-progress');
     const fillEl     = document.getElementById('sighting-progress-fill');
     const labelEl    = document.getElementById('sighting-progress-label');
-    let photoUrl = null;
-    try {
-        progressEl.classList.remove('hidden'); fillEl.style.width = '0%'; labelEl.textContent = 'Compressing photo…';
-        const compressed = await compressImage(sightingPhotoFile);
-        labelEl.textContent = 'Uploading photo…';
-        photoUrl = await uploadToCloudinary(compressed, pct => { fillEl.style.width = pct + '%'; labelEl.textContent = `Uploading… ${pct}%`; });
-    } catch (e) {
-        console.error('Sighting photo upload failed:', e);
-        errorEl.textContent = 'Photo upload failed — try again or pick another photo.';
-        progressEl.classList.add('hidden');
-        btn.disabled = false; btn.textContent = 'Post Note';
-        return;
+
+    // Keep the existing photo unless the user picked a new one.
+    let photoUrl = editingExistingPhotoUrl;
+    if (sightingPhotoFile) {
+        try {
+            progressEl.classList.remove('hidden'); fillEl.style.width = '0%'; labelEl.textContent = 'Compressing photo…';
+            const compressed = await compressImage(sightingPhotoFile);
+            labelEl.textContent = 'Uploading photo…';
+            photoUrl = await uploadToCloudinary(compressed, pct => { fillEl.style.width = pct + '%'; labelEl.textContent = `Uploading… ${pct}%`; });
+        } catch (e) {
+            console.error('Sighting photo upload failed:', e);
+            errorEl.textContent = 'Photo upload failed — try again or pick another photo.';
+            progressEl.classList.add('hidden');
+            btn.disabled = false; btn.textContent = restLabel;
+            return;
+        }
     }
     try {
-        await db.collection('sightings').add({
-            title:    title || null,
-            caption:  caption || null,
-            photoUrl,
-            postedBy: { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
-            postedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            likes:    [],
-            comments: [],
-        });
-        closeSightingComposer();
-        showIssueToast('Note posted ✓');
+        if (editing) {
+            await db.collection('sightings').doc(editingSightingId).update({
+                title:   title || null,
+                caption: caption || null,
+                photoUrl,
+            });
+            closeSightingComposer();
+            showIssueToast('Note updated ✓');
+        } else {
+            await db.collection('sightings').add({
+                title:    title || null,
+                caption:  caption || null,
+                photoUrl,
+                postedBy: { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
+                postedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                likes:    [],
+                comments: [],
+            });
+            closeSightingComposer();
+            showIssueToast('Note posted ✓');
+        }
         loadSightings();
     } catch (e) {
         console.error('submitSighting:', e);
-        errorEl.textContent = 'Could not post — please try again.';
+        errorEl.textContent = editing ? 'Could not save — please try again.' : 'Could not post — please try again.';
         progressEl.classList.add('hidden');
-        btn.disabled = false; btn.textContent = 'Post Note';
+        btn.disabled = false; btn.textContent = restLabel;
     }
 }
 
 // ── Sightings wiring ──
 document.getElementById('sightings-resources-btn')?.addEventListener('click', openSightings);
 document.getElementById('sightings-back-btn')?.addEventListener('click', closeSightings);
-document.getElementById('sighting-new-btn')?.addEventListener('click', openSightingComposer);
+document.getElementById('sighting-new-btn')?.addEventListener('click', () => openSightingComposer());
 document.getElementById('sighting-submit-btn')?.addEventListener('click', submitSighting);
 document.getElementById('sighting-cancel-btn')?.addEventListener('click', closeSightingComposer);
 document.getElementById('sighting-composer-backdrop')?.addEventListener('click', closeSightingComposer);
@@ -3645,6 +3690,7 @@ document.getElementById('sighting-photo-input')?.addEventListener('change', e =>
 });
 document.getElementById('sighting-photo-remove')?.addEventListener('click', () => {
     sightingPhotoFile = null;
+    editingExistingPhotoUrl = null;   // dropping the kept photo → a new one is required
     document.getElementById('sighting-photo-input').value = '';
     document.getElementById('sighting-photo-preview').classList.add('hidden');
     document.getElementById('sighting-photo-remove').classList.add('hidden');
@@ -3660,6 +3706,7 @@ document.getElementById('sightings-feed')?.addEventListener('click', (e) => {
         case 'like':         toggleSightingLike(id); break;
         case 'comments':     toggleSightingComments(id); break;
         case 'send-comment': postSightingComment(id); break;
+        case 'edit':         editSighting(id); break;
         case 'delete':       deleteSighting(id); break;
     }
 });
