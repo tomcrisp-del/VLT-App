@@ -3253,6 +3253,7 @@ function buildOwlCard(u) {
                     data-email="${escapeHtml(u.email || '')}"
                     data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
                     data-about="${escapeHtml(u.profile?.availability || '')}"
+                    data-photo="${escapeHtml(u.photoUrl || '')}"
                     type="button">Contact</button>
         </div>`;
     return card;
@@ -3310,10 +3311,14 @@ function openOwlInfo(u) {
 
 // Contact popup for a member card — Email always (it's their login), plus
 // Call / Text when a phone number is on file.
-function openOwlContact(name, email, phone, about) {
+function openOwlContact(name, email, phone, about, photo) {
     document.getElementById('owl-contact-pop')?.remove();
 
     const dial = (phone || '').replace(/[^\d+]/g, '');
+    const initials = (name || 'Owl').trim().split(/\s+/).map(w => w[0] || '').slice(0, 2).join('').toUpperCase();
+    const avatarHTML = photo
+        ? `<div class="owl-contact-avatar"><img src="${photo}" alt="" loading="lazy"></div>`
+        : `<div class="owl-contact-avatar">${escapeHtml(initials)}</div>`;
     const rows = [];
     if (email) {
         rows.push(`<a class="owl-contact-row" href="mailto:${encodeURIComponent(email)}">
@@ -3340,6 +3345,7 @@ function openOwlContact(name, email, phone, about) {
     pop.innerHTML = `
         <div class="owl-contact-backdrop"></div>
         <div class="owl-contact-card">
+            ${avatarHTML}
             <h3 class="owl-contact-title">Contact ${escapeHtml(name || 'Owl')}</h3>
             ${aboutHTML}
             ${rows.join('')}
@@ -3380,7 +3386,7 @@ document.getElementById('flock-list')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     if (btn.dataset.action === 'contact-owl') {
-        openOwlContact(btn.dataset.name, btn.dataset.email, btn.dataset.phone, btn.dataset.about);
+        openOwlContact(btn.dataset.name, btn.dataset.email, btn.dataset.phone, btn.dataset.about, btn.dataset.photo);
     } else if (btn.dataset.action === 'info-owl') {
         if (currentOwl?.isAdmin) openOwlInfo(flockUsers.find(u => u.uid === btn.dataset.uid));
     }
