@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.1.7";
+const APP_VERSION = "1.1.8";
 
 const properties = [
     {
@@ -534,6 +534,9 @@ let trailLayer = null;
 let locationMarker = null;
 let watchId = null;
 let allMap = null;
+// Cache of preserve boundary polygons on the island map, for the "My Location"
+// button's point-in-polygon test (snap into the trail you're standing in).
+let boundaryPolygons = [];   // [{ prop, geojson }]
 let allTrailsLoaded = false;
 let boundaryLayerSingle = null;
 let parkingLayerSingle = null;
@@ -780,6 +783,7 @@ async function loadAdjacentLayers(map, adjProp) {
 // Add all boundaries to a map
 async function addAllBoundaries(targetMap) {
     const group = L.layerGroup().addTo(targetMap);
+    boundaryPolygons = [];
     for (const prop of properties) {
         if (!prop.boundary) continue;
         try {
@@ -790,6 +794,7 @@ async function addAllBoundaries(targetMap) {
                 for (const parcelFile of b.parcels) {
                     const geoJson = await loadKml(propPath(prop, parcelFile));
                     if (geoJson) {
+                        boundaryPolygons.push({ prop, geojson: geoJson });
                         // Determine style based on filename
                         let style = boundaryStyle(prop); // default to property owner
                         if (parcelFile.includes("little-tip-toe")) {
@@ -813,6 +818,7 @@ async function addAllBoundaries(targetMap) {
                 // Single file boundary (original behavior)
                 const geoJson = await loadBoundary(prop);
                 if (geoJson) {
+                    boundaryPolygons.push({ prop, geojson: geoJson });
                     L.geoJSON(geoJson, {
                         style: boundaryStyle(prop),
                         onEachFeature: function (feature, layer) {
@@ -2022,6 +2028,27 @@ function initAllMap() {
 
     L.control.zoom({ position: "bottomright" }).addTo(allMap);
 
+    // "My Location" button — locate the user; snap into the preserve they're
+    // standing in, or just center the map on them.
+    const LocateControl = L.Control.extend({
+        options: { position: "bottomright" },
+        onAdd: function () {
+            const btn = L.DomUtil.create("button", "map-locate-btn");
+            btn.type = "button";
+            btn.title = "My Location";
+            btn.setAttribute("aria-label", "My Location");
+            btn.innerHTML =
+                '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>';
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, "click", function (e) {
+                L.DomEvent.stop(e);
+                locateMe(btn);
+            });
+            return btn;
+        },
+    });
+    allMap.addControl(new LocateControl());
+
     const AllLegendControl = L.Control.extend({
         options: { position: "bottomleft" },
         onAdd: function () {
@@ -2116,6 +2143,74 @@ function initializeAllTrailsMap() {
 // Geolocation — Blue Dot
 // ============================================================
 let activeMap = null;
+
+// Which preserve (if any) contains this GPS point? Uses turf point-in-polygon
+// against the boundary polygons cached when the island map loaded.
+function findContainingProperty(lat, lng) {
+    if (typeof turf === "undefined") return null;
+    const pt = [lng, lat]; // GeoJSON is [lng, lat]
+    for (const entry of boundaryPolygons) {
+        const gj = entry.geojson;
+        const features = gj && gj.features ? gj.features : (gj ? [gj] : []);
+        for (const f of features) {
+            const geom = f && f.geometry ? f.geometry : f;
+            if (!geom || (geom.type !== "Polygon" && geom.type !== "MultiPolygon")) continue;
+            try {
+                if (turf.booleanPointInPolygon(pt, geom)) return entry.prop;
+            } catch (e) { /* malformed geometry — skip */ }
+        }
+    }
+    return null;
+}
+
+// "My Location" button handler on the island map: locate the user, snap them
+// into the preserve they're standing in, or just center the map on them.
+let locating = false;
+function locateMe(btn) {
+    if (locating) return;
+    if (!navigator.geolocation) {
+        console.log("Location isn't available on this device.");
+        return;
+    }
+    locating = true;
+    if (btn) btn.classList.add("locating");
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            locating = false;
+            if (btn) btn.classList.remove("locating");
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            const prop = findContainingProperty(lat, lng);
+            if (prop) {
+                // Standing inside a preserve → snap into its trail page.
+                navigateToPropertyFromAllTrails(prop);
+                return;
+            }
+            // Not in any preserve → center the island map on the user.
+            if (allMap) {
+                allMap.setView([lat, lng], Math.max(allMap.getZoom(), 15));
+                const latlng = [lat, lng];
+                if (locationMarker) {
+                    locationMarker.setLatLng(latlng);
+                } else {
+                    locationMarker = L.marker(latlng, {
+                        icon: L.divIcon({ className: "location-dot", iconSize: [18, 18], iconAnchor: [9, 9] }),
+                        zIndexOffset: 1000,
+                    }).addTo(allMap);
+                }
+            }
+        },
+        (err) => {
+            locating = false;
+            if (btn) btn.classList.remove("locating");
+            const msg = err.code === 1
+                ? "Location permission denied. Enable it in Settings to use this."
+                : "Couldn't get your location — try again outdoors.";
+            if (typeof window.showIssueToast === "function") window.showIssueToast(msg);
+            else console.log(msg);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+    );
+}
 
 function startLocationTracking(targetMap) {
     if (!navigator.geolocation) return;
