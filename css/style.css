@@ -1691,12 +1691,12 @@ header {
 
 /* ── OWLS AUTH ── */
 .owl-login-top-btn {
-    margin-top: 1.25rem;
+    margin-top: 0.75rem;
     margin-bottom: 0.25rem;
 }
 
 #owls-profile {
-    margin: 1.25rem 0 0.25rem;
+    margin: 0.75rem 0 0.25rem;
 }
 
 #owls-login-btn.hidden {
@@ -4426,7 +4426,7 @@ header {
     color: white;
     border-radius: 11px;
     padding: 12px 16px;
-    margin: 4px 0 12px;
+    margin: 12px 0;
     box-shadow: 0 2px 8px rgba(44, 95, 45, 0.22);
     text-align: center;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -4543,16 +4543,17 @@ header {
 /* Owl cards */
 .flock-list {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
 .owl-card {
     background: white;
     border-radius: 12px;
-    padding: 14px;
+    padding: 12px 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     border: 1px solid #f0f0ec;
     transition: transform 0.13s;
+    text-align: center;
 }
 .owl-card.owl-card-me {
     border: 2px solid #3d8b6f;
@@ -4599,8 +4600,8 @@ header {
 .owl-contact-btn.owl-contact-self:hover,
 .owl-contact-btn.owl-contact-self:active { background: #f6f7f5; }
 .owl-card-avatar {
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: linear-gradient(135deg, #3d8b6f, #2c5f2d);
     color: white;
@@ -4608,10 +4609,18 @@ header {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 1.25rem;
     flex-shrink: 0;
-    box-shadow: 0 1px 3px rgba(44, 95, 45, 0.25);
+    overflow: hidden;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(44, 95, 45, 0.3), 0 0 0 1px #e2e8e3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.owl-card-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 .owl-card-info {
     flex: 1;
@@ -4619,14 +4628,11 @@ header {
     display: block;
 }
 .owl-card-name {
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: #1a3d3d;
-    flex: 1 1 auto;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.2;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .owl-you-tag {
@@ -4654,11 +4660,12 @@ header {
 
 /* Owl-card horizontal layout: existing content on the left, vertical
    divider, day-availability pills on the right. */
-/* ── Flock card v2 — single column, full-width rows ─── */
+/* ── Flock card v3 — compact, two-column grid, centered ─── */
 .owl-card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
 }
 .owl-card-section {
     /* Subtle separator above each section after the identity row */
@@ -4690,26 +4697,29 @@ header {
 .owl-card-name-line {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px 6px;
     min-width: 0;
 }
 
-/* Day strip — 7 pills, full card width, comfortably big */
+/* Day strip — 7 mini pills, full card width */
 .owl-day-strip {
     display: flex;
-    gap: 4px;
+    gap: 3px;
+    width: 100%;
 }
 .owl-day-pill {
     flex: 1 1 0;
-    height: 30px;
-    border-radius: 7px;
+    height: 20px;
+    border-radius: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: #f3f4f1;
-    color: #aaa;
-    border: 1.5px solid #e2e3dd;
-    font-size: 0.85rem;
+    color: #b3b3b3;
+    border: 1px solid #e2e3dd;
+    font-size: 0.6rem;
     font-weight: 700;
     line-height: 1;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -4842,6 +4852,24 @@ header {
     font-size: 0.8rem;
     color: #6a8a7a;
 }
+/* Consolidated phone row: number on the left, Call + Text buttons on the right */
+.owl-contact-phone-row .owl-contact-txt { flex: 1 1 auto; min-width: 0; }
+.owl-contact-phone-btns {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+}
+.owl-contact-phone-btns a {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #3d8b6f;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.owl-contact-phone-btns a:active { background: #2c5f2d; }
 .owl-contact-empty {
     text-align: center;
     color: #6a8a7a;
@@ -4944,21 +4972,120 @@ header {
 }
 .owl-pref-pill {
     flex: 0 0 auto;
-    padding: 4px 10px;
-    border-radius: 12px;
-    background: #f3f4f1;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: #eef3f0;
     color: #1a3d3d;
-    border: 1px solid #e2e3dd;
-    font-size: 0.74rem;
+    border: 1px solid #dbe6e0;
+    font-size: 0.66rem;
     font-weight: 600;
     line-height: 1.1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .owl-pref-empty {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     color: #aaa;
     font-style: italic;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+/* Steward pill — same look, but two centered lines */
+.owl-pref-pill.owl-pref-steward {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    padding: 4px 12px;
+}
+
+/* ── Flock card v3 compact pieces ── */
+.owl-card-tenure {
+    font-size: 0.7rem;
+    color: #999;
+    margin: 0;
+}
+.owl-card-avail {
+    width: 100%;
+}
+.owl-season-line {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #3d8b6f;
+}
+.owl-card-prefs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    width: 100%;
+}
+.owl-pref-more {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #6a8a7a;
+    align-self: center;
+}
+.owl-card-contact {
+    width: 100%;
+    margin-top: 2px;
+    padding: 8px 12px;
+    border-radius: 9px;
+    border: 1.5px solid #1a3d3d;
+    background: #1a3d3d;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+.owl-card-contact:active { opacity: 0.85; }
+.owl-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+}
+
+/* ── Profile photo picker (Edit My Info) ── */
+.member-photo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.member-photo-circle {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #3d8b6f, #2c5f2d);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #e2e8e3;
+}
+.member-photo-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* The .hidden class has no global rule — scope it for the photo elements. */
+#member-photo-preview.hidden,
+#member-photo-initials.hidden { display: none; }
+.member-photo-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
 }
 
 /* Season toggles (interactive, in the volunteer profile section) */

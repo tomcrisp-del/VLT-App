@@ -861,12 +861,12 @@ const TRAIL_ABBR = {
     'Eleanor L. Campbell Preserve (Polly Cove)':        'Polly Cove',
     'Granite Island Preserve & Story Book Trail':       'Granite Island',
     'Grimes Park':                                      'Grimes',
-    'Lower Mill River Preserve (Fishhook & Overlook)':  'Fish Hook and Overlook',
+    'Lower Mill River Preserve (Fishhook & Overlook)':  'Mill River',
     'Marcuse Wetland Preserve':                         'Marcuse',
     'Middle Mountain Town Park':                        'Middle MTN',
     'Perry Creek North Preserve':                       'Perry Creek',
     'Round Pond Trail':                                 'Round Pond',
-    'Starboard Rock Sanctuary':                         'Starboard Rock',
+    'Starboard Rock Sanctuary':                         'Starboard',
     'State Beach Town Park':                            'State Beach',
     'Tip Toe Mountain Park':                            'Tiptoe',
     'Watershed Preserve & Wetland Point Trail':         'Watershed',
@@ -1969,6 +1969,26 @@ function openMemberProfile() {
     if (pinInput) { pinInput.value = currentOwl.pin || ''; pinInput.type = 'password'; }
     if (pinEye)   pinEye.classList.remove('revealed');
 
+    // Profile photo — show current photo or initials; reset pending state.
+    memberPhotoFile = null; memberPhotoCleared = false;
+    const raw      = currentOwl.displayName || currentOwl.email || 'OW';
+    const initials = raw.split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2) || 'OW';
+    const mPreview = document.getElementById('member-photo-preview');
+    const mInit    = document.getElementById('member-photo-initials');
+    const mRemove  = document.getElementById('member-photo-remove');
+    if (mInit) mInit.textContent = initials;
+    if (currentOwl.photoUrl) {
+        mPreview.src = currentOwl.photoUrl;
+        mPreview.classList.remove('hidden');
+        mInit.classList.add('hidden');
+        mRemove.classList.remove('hidden');
+    } else {
+        mPreview.src = '';
+        mPreview.classList.add('hidden');
+        mInit.classList.remove('hidden');
+        mRemove.classList.add('hidden');
+    }
+
     document.getElementById('member-profile-panel').classList.remove('hidden');
 }
 
@@ -2019,9 +2039,26 @@ async function saveMemberProfile() {
         update.chainsawCertifiedAt = null;
     }
 
+    // Profile photo: upload a newly chosen one, or clear it if removed.
+    if (memberPhotoFile) {
+        try {
+            const compressed = await compressImage(memberPhotoFile);
+            update.photoUrl = await uploadToCloudinary(compressed, function(){});
+        } catch (e) {
+            console.error('Profile photo upload failed:', e);
+            errorEl.textContent = 'Photo upload failed — try again or remove the photo.';
+            saveBtn.disabled = false; saveBtn.textContent = 'Save My Info';
+            return;
+        }
+    } else if (memberPhotoCleared) {
+        update.photoUrl = null;
+    }
+
     try {
         await db.collection('users').doc(currentOwl.uid).update(update);
         Object.assign(currentOwl, { profile, waiverSigned, chainsawCertified });
+        if ('photoUrl' in update) currentOwl.photoUrl = update.photoUrl;
+        memberPhotoFile = null; memberPhotoCleared = false;
         if (waiverSigned && !currentOwl.waiverSignedAt) currentOwl.waiverSignedAt = new Date();
         if (chainsawCertified && !currentOwl.chainsawCertifiedAt) currentOwl.chainsawCertifiedAt = new Date();
         updateWaiverPill();
@@ -2060,6 +2097,38 @@ document.getElementById('owl-edit-profile-btn').addEventListener('click', openMe
 document.getElementById('member-profile-cancel-btn').addEventListener('click', closeMemberProfile);
 document.getElementById('member-profile-backdrop').addEventListener('click',  closeMemberProfile);
 document.getElementById('member-profile-save-btn').addEventListener('click',  saveMemberProfile);
+
+// ── Profile photo picker (saved with "Save My Info") ───────────
+let memberPhotoFile    = null;   // newly chosen file pending upload
+let memberPhotoCleared = false;  // user removed their existing photo
+
+document.getElementById('member-photo-btn').addEventListener('click', () => {
+    document.getElementById('member-photo-input').click();
+});
+document.getElementById('member-photo-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    memberPhotoFile = file;
+    memberPhotoCleared = false;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const preview = document.getElementById('member-photo-preview');
+        preview.src = ev.target.result;
+        preview.classList.remove('hidden');
+        document.getElementById('member-photo-initials').classList.add('hidden');
+        document.getElementById('member-photo-remove').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+});
+document.getElementById('member-photo-remove').addEventListener('click', () => {
+    memberPhotoFile = null;
+    memberPhotoCleared = true;
+    document.getElementById('member-photo-input').value = '';
+    document.getElementById('member-photo-preview').src = '';
+    document.getElementById('member-photo-preview').classList.add('hidden');
+    document.getElementById('member-photo-initials').classList.remove('hidden');
+    document.getElementById('member-photo-remove').classList.add('hidden');
+});
 
 // ── Live availability toggles (no save button) ─────────────────
 // Day numbers match JS getDay(): 0=Sun … 6=Sat. Stored as a number array.
@@ -2110,7 +2179,7 @@ document.getElementById('availability-season-toggles').addEventListener('click',
 });
 
 // ── Preferred Trails — live-saves, capped at 5 ───────────────
-const PREFERRED_TRAILS_MAX = 5;
+const PREFERRED_TRAILS_MAX = 3;
 
 function renderPreferredTrailToggles() {
     const wrap = document.getElementById('pref-trail-toggles');
@@ -2798,6 +2867,16 @@ document.getElementById('admin-members-back-btn').addEventListener('click', () =
 // Badge definitions — military-style, icon-only on cards. Tap for name/desc.
 // Each badge is a separate axis of contribution; tiered tracks accumulate
 // (a 100-report owl shows ALL four reporter badges, like rank insignia).
+//
+// DORMANT: badges are hidden for now. The whole system (BADGES list, earn
+// logic, legend) is intact — flip this to true to bring badges back on the
+// Flock cards and re-show the "What do badges mean?" legend.
+const FLOCK_SHOW_BADGES = false;
+
+// This account's Flock card shows a single "All Trails / VLT Steward" pill
+// instead of preferred-trail pills.
+const STEWARD_EMAIL = 'tom.crisp@vinalhavenlandtrust.org';
+
 const BADGES = [
     // Welcome
     { id: 'new_owl',      icon: '🦉', name: 'New Owl',           desc: 'Welcome to the Flock',                       earn: () => true },
@@ -3075,7 +3154,10 @@ async function loadFlock() {
         listEl.innerHTML = '';
         users.forEach(u => listEl.appendChild(buildOwlCard(u)));
 
-        renderBadgeLegend();
+        // Badges (and their legend) are dormant — see FLOCK_SHOW_BADGES.
+        const legendBtn = document.getElementById('flock-legend-btn');
+        if (legendBtn) legendBtn.style.display = FLOCK_SHOW_BADGES ? '' : 'none';
+        if (FLOCK_SHOW_BADGES) renderBadgeLegend();
     } catch (err) {
         console.error('loadFlock error:', err);
     }
@@ -3089,72 +3171,67 @@ function buildOwlCard(u) {
     const isMe = currentOwl && u.uid === currentOwl.uid;
     if (isMe) card.classList.add('owl-card-me');
 
-    const raw      = u.displayName || u.email || 'OW';
-    const initials = raw.split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2) || 'OW';
+    const name     = u.displayName || u.email || 'Owl';
+    const initials = name.split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2) || 'OW';
     const joined   = formatJoinedDate(u.joinedAt);
-    const tenure   = joined ? `Owl since ${joined}` : 'Recently joined';
+    const tenure   = joined ? `Since ${joined}` : 'New Owl';
+    const youTag   = isMe ? ' <span class="owl-you-tag">YOU</span>' : '';
 
-    const badgesHTML = u._badges.length
-        ? u._badges.map(b => `<span class="owl-badge" data-badge="${b.id}" title="${escapeHtml(b.name)} — ${escapeHtml(b.desc)}">${b.icon}</span>`).join('')
-        : '<span class="owl-no-badges">Badges arrive once you start contributing — get out there!</span>';
+    // Circular profile shot, or initials fallback
+    const avatarInner = u.photoUrl
+        ? `<img src="${u.photoUrl}" alt="" loading="lazy">`
+        : escapeHtml(initials);
 
-    const youTag = isMe ? ' <span class="owl-you-tag">YOU</span>' : '';
-
-    const days     = u.availableDays    || [];
-    const seasons  = u.availableSeasons || [];
-    const prefs    = (u.preferredTrails || []).slice(0, 5);
+    // Compact availability: 7 mini day pills + a short season line
+    const days    = u.availableDays    || [];
+    const seasons = u.availableSeasons || [];
     const DAY_LIST = [
         { d: 1, l: 'M' }, { d: 2, l: 'T' }, { d: 3, l: 'W' },
-        { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' },
-        { d: 0, l: 'S' },
-    ];
-    const SEASON_LIST = [
-        { s: 'summer',    l: 'Summer'    },
-        { s: 'offseason', l: 'Off-Season' },
+        { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' }, { d: 0, l: 'S' },
     ];
     const dayHTML = DAY_LIST.map(({ d, l }) =>
         `<span class="owl-day-pill ${days.includes(d) ? 'active' : ''}">${l}</span>`
     ).join('');
-    const seasonHTML = SEASON_LIST.map(({ s, l }) =>
-        `<span class="owl-season-pill ${seasons.includes(s) ? 'active' : ''}">${escapeHtml(l)}</span>`
-    ).join('');
-    const prefsHTML = prefs.length
-        ? prefs.map(folder => `<span class="owl-pref-pill">${escapeHtml(trailLabel(folder))}</span>`).join('')
-        : '<span class="owl-pref-empty">No preferred trails yet</span>';
+    const seasonTxt = seasons.length
+        ? seasons.map(s => s === 'summer' ? 'Summer' : 'Off-season').join(' · ')
+        : 'Anytime';
+
+    // Preferred trails — show all, up to the current cap (handles legacy
+    // profiles that saved more than the new max; all of them display).
+    // Special case: the VLT steward's card shows a single steward pill.
+    let prefsHTML;
+    if (u.email === STEWARD_EMAIL) {
+        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Steward</span>';
+    } else {
+        const prefs = (u.preferredTrails || []).slice(0, PREFERRED_TRAILS_MAX);
+        prefsHTML = prefs.length
+            ? prefs.map(f => `<span class="owl-pref-pill">${escapeHtml(trailLabel(f))}</span>`).join('')
+            : '<span class="owl-pref-empty">No trails yet</span>';
+    }
+
+    // Badges are dormant; render only when re-enabled.
+    const badgesHTML = (FLOCK_SHOW_BADGES && u._badges && u._badges.length)
+        ? `<div class="owl-card-badges">${u._badges.map(b =>
+            `<span class="owl-badge" title="${escapeHtml(b.name)} — ${escapeHtml(b.desc)}">${b.icon}</span>`).join('')}</div>`
+        : '';
 
     card.innerHTML = `
-        <div class="owl-card-id">
-            <div class="owl-card-avatar">${escapeHtml(initials)}</div>
-            <div class="owl-card-id-text">
-                <div class="owl-card-name-line">
-                    <span class="owl-card-name">${escapeHtml(u.displayName || u.email || 'Owl')}</span>
-                    ${youTag}
-                </div>
-                <div class="owl-card-tenure">${escapeHtml(tenure)}</div>
-            </div>
+        <div class="owl-card-avatar">${avatarInner}</div>
+        <div class="owl-card-name-line">
+            <span class="owl-card-name">${escapeHtml(name)}</span>${youTag}
         </div>
-
-        <div class="owl-card-section owl-badges">${badgesHTML}</div>
-
-        <div class="owl-card-section">
-            <div class="owl-card-section-label">I can be available on</div>
+        <div class="owl-card-tenure">${escapeHtml(tenure)}</div>
+        ${badgesHTML}
+        <div class="owl-card-avail">
             <div class="owl-day-strip">${dayHTML}</div>
-            <div class="owl-season-strip">${seasonHTML}</div>
+            <div class="owl-season-line">${escapeHtml(seasonTxt)}</div>
         </div>
-
-        <div class="owl-card-section">
-            <div class="owl-card-section-label">My preferred trails</div>
-            <div class="owl-pref-pills">${prefsHTML}</div>
-        </div>
-
-        <div class="owl-card-section owl-card-actions">
-            <button class="owl-action-btn" data-action="view-info" type="button">View info</button>
-            <button class="owl-action-btn owl-action-btn-secondary" data-action="contact-owl"
-                    data-name="${escapeHtml(u.displayName || u.email || 'Owl')}"
-                    data-email="${escapeHtml(u.email || '')}"
-                    data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
-                    type="button">Contact</button>
-        </div>`;
+        <div class="owl-card-prefs">${prefsHTML}</div>
+        <button class="owl-action-btn owl-card-contact" data-action="contact-owl"
+                data-name="${escapeHtml(name)}"
+                data-email="${escapeHtml(u.email || '')}"
+                data-phone="${escapeHtml(u.profile?.phoneNumber || '')}"
+                type="button">Contact</button>`;
     return card;
 }
 
@@ -3171,12 +3248,13 @@ function openOwlContact(name, email, phone) {
             <span class="owl-contact-txt">Email<span class="owl-contact-sub">${escapeHtml(email)}</span></span></a>`);
     }
     if (dial) {
-        rows.push(`<a class="owl-contact-row" href="tel:${dial}">
+        rows.push(`<div class="owl-contact-row owl-contact-phone-row">
             <span class="owl-contact-ic">📞</span>
-            <span class="owl-contact-txt">Call<span class="owl-contact-sub">${escapeHtml(phone)}</span></span></a>`);
-        rows.push(`<a class="owl-contact-row" href="sms:${dial}">
-            <span class="owl-contact-ic">💬</span>
-            <span class="owl-contact-txt">Text<span class="owl-contact-sub">${escapeHtml(phone)}</span></span></a>`);
+            <span class="owl-contact-txt">Call or Text<span class="owl-contact-sub">${escapeHtml(phone)}</span></span>
+            <span class="owl-contact-phone-btns">
+                <a href="tel:${dial}">Call</a>
+                <a href="sms:${dial}">Text</a>
+            </span></div>`);
     }
     if (!rows.length) rows.push('<div class="owl-contact-empty">No contact info on file yet.</div>');
 

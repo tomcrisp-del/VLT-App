@@ -1,3 +1,12 @@
+# ── Secrets scanning ────────────────────────────────────────────────
+# The Firebase Web API key is PUBLIC by design — it ships in client-side
+# JS for every visitor, and security is enforced by Firestore rules + Auth
+# (not by hiding the key). Netlify's smart scanner flags the "AIza…"
+# pattern anyway, so we tell it this specific value is expected. No real
+# secret (API secret, private key, etc.) lives in this repo.
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyA7pGNhM6aX96v5A34EFZnV4UnV6056jGE"
+
 # ── Caching strategy ────────────────────────────────────────────────
 # HTML is always revalidated so phones pick up new deploys immediately.
 # Everything the HTML points at is cached for speed:

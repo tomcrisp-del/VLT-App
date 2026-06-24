@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.13">
+    <link rel="stylesheet" href="css/style.css?v=2.17">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -510,7 +510,7 @@
         <div id="owls-content">
             <!-- Top-of-page impact strip — visible to everyone, logged in or not -->
             <div id="owls-impact" class="owls-impact-card">
-                <span class="impact-line"><strong id="flock-owls">–</strong> OWLS resolved <strong id="flock-tasks-done">–</strong> trail issues on<br><strong>22</strong> miles of trail this year</span>
+                <span class="impact-line"><strong id="flock-owls">–</strong> <strong>OWLS</strong> resolved <strong id="flock-tasks-done">–</strong> <strong>trail issues</strong> on<br><strong>22</strong> <strong>miles of trail</strong> this year</span>
             </div>
 
             <!-- Auth: login button (logged-out) / profile card (logged-in) -->
@@ -554,9 +554,9 @@
             <div id="owl-preferred-trails-section" class="hidden owl-section">
                 <div class="owl-section-header">
                     <h3 class="owl-section-title">My Preferred Trails</h3>
-                    <span id="owl-pref-count" class="owl-pref-count">0 / 5</span>
+                    <span id="owl-pref-count" class="owl-pref-count">0 / 3</span>
                 </div>
-                <p class="owl-section-sub">Pick up to 5 trails you know best.</p>
+                <p class="owl-section-sub">Pick up to 3 trails you know best.</p>
                 <div class="pref-trail-toggles" id="pref-trail-toggles"></div>
             </div>
 
@@ -931,6 +931,21 @@
             <p class="issue-form-trail-name">Help us reach you and keep you safe on the trails.</p>
 
             <div class="issue-form-field">
+                <label class="issue-form-label">Profile Photo</label>
+                <div class="member-photo-row">
+                    <div class="member-photo-circle" id="member-photo-circle">
+                        <img id="member-photo-preview" alt="" class="hidden">
+                        <span id="member-photo-initials">OW</span>
+                    </div>
+                    <div class="member-photo-actions">
+                        <input type="file" id="member-photo-input" accept="image/*" hidden>
+                        <button type="button" id="member-photo-btn" class="completion-photo-btn">Add / Change Photo</button>
+                        <button type="button" id="member-photo-remove" class="completion-photo-remove hidden">Remove photo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="issue-form-field">
                 <label class="issue-form-label" for="owl-set-pin-input">Login PIN <span class="issue-form-label-hint">(4 digits — tap your name + this PIN to sign in)</span></label>
                 <div class="owl-pin-field">
                     <input id="owl-set-pin-input" type="password" inputmode="numeric" maxlength="4" class="owl-pin-input-compact" placeholder="••••" autocomplete="off">
@@ -1099,12 +1114,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=2.13"></script>
-    <script src="js/app.js?v=2.13"></script>
+    <script src="js/wildlife-data.js?v=2.17"></script>
+    <script src="js/app.js?v=2.17"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=2.13"></script>
+    <script src="js/owls.js?v=2.17"></script>
 </body>
 </html>
