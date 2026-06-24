@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=1.3.1">
+    <link rel="stylesheet" href="css/style.css?v=1.3.2">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -1196,6 +1196,10 @@
         <div class="doc-viewer-header">
             <button type="button" id="doc-viewer-back" class="wildlife-nav-btn">&larr; Back</button>
             <span id="doc-viewer-title" class="doc-viewer-title"></span>
+            <div id="doc-viewer-zoom" class="doc-viewer-zoom hidden">
+                <button type="button" id="doc-zoom-out" class="doc-zoom-btn" aria-label="Zoom out">&minus;</button>
+                <button type="button" id="doc-zoom-in" class="doc-zoom-btn" aria-label="Zoom in">+</button>
+            </div>
             <a id="doc-viewer-external" class="doc-viewer-external" target="_blank" rel="noopener" title="Open in a new tab">Open ↗</a>
         </div>
         <div id="doc-viewer-body" class="doc-viewer-body"></div>
@@ -1204,12 +1208,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=1.3.1"></script>
-    <script src="js/app.js?v=1.3.1"></script>
+    <script src="js/wildlife-data.js?v=1.3.2"></script>
+    <script src="js/app.js?v=1.3.2"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=1.3.1"></script>
+    <script src="js/owls.js?v=1.3.2"></script>
 </body>
 </html>

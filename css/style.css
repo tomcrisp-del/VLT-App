@@ -5746,15 +5746,53 @@ header {
     -webkit-overflow-scrolling: touch;
 }
 
-.doc-viewer-frame {
-    width: 100%;
-    height: 100%;
-    border: 0;
-}
-
 .doc-viewer-image {
     display: block;
     width: 100%;
     height: auto;
+}
+
+/* PDF pages rendered by PDF.js — stacked vertically, scroll to read all
+   pages; the − / + buttons re-render at a new scale (pinch-zoom is off). */
+.doc-viewer-page {
+    display: block;
+    margin: 8px auto;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+.doc-viewer-loading {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 0;
+}
+
+.doc-viewer-error {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: #666;
+    line-height: 1.4;
+}
+
+.doc-viewer-zoom {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.doc-viewer-zoom.hidden {
+    display: none;
+}
+
+.doc-zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #cfd8cf;
+    background: #fff;
+    border-radius: 6px;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: #2c5f2d;
+    cursor: pointer;
 }
 

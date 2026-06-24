@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 
 const properties = [
     {
@@ -2537,43 +2537,121 @@ function downscaleToBase64(file) {
 }
 
 // ── In-app Document Viewer ───────────────────────────────────
-// Resource links marked with data-doc open in a full-screen overlay that
-// has its own Back button, so a PDF/image never replaces the whole app.
+// Resource links marked with data-doc open in a full-screen overlay with its
+// own Back button, so a PDF/image never replaces the whole app. PDFs render
+// every page (stacked, vertical scroll) via PDF.js — iframes only show page 1
+// on mobile WebKit — with − / + zoom buttons, since the app disables pinch-zoom.
+const PDFJS_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
 (function setupDocViewer() {
-    const viewer  = document.getElementById("doc-viewer");
-    const body    = document.getElementById("doc-viewer-body");
-    const titleEl = document.getElementById("doc-viewer-title");
-    const extEl   = document.getElementById("doc-viewer-external");
-    const backBtn = document.getElementById("doc-viewer-back");
+    const viewer   = document.getElementById("doc-viewer");
+    const body     = document.getElementById("doc-viewer-body");
+    const titleEl  = document.getElementById("doc-viewer-title");
+    const extEl    = document.getElementById("doc-viewer-external");
+    const backBtn  = document.getElementById("doc-viewer-back");
+    const zoomWrap = document.getElementById("doc-viewer-zoom");
+    const zoomIn   = document.getElementById("doc-zoom-in");
+    const zoomOut  = document.getElementById("doc-zoom-out");
     if (!viewer || !body) return;
+
+    let pdfDoc = null;       // current PDF.js document
+    let pdfZoom = 1;         // 1 = fit container width
+    let renderToken = 0;     // cancels superseded renders (zoom/close)
+
+    // Lazy-load PDF.js the first time a PDF is opened.
+    let pdfjsReady = null;
+    function ensurePdfJs() {
+        if (pdfjsReady) return pdfjsReady;
+        pdfjsReady = new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = PDFJS_SRC;
+            s.onload = () => {
+                try {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+                    resolve(window.pdfjsLib);
+                } catch (e) { reject(e); }
+            };
+            s.onerror = () => reject(new Error("pdfjs failed to load"));
+            document.head.appendChild(s);
+        });
+        return pdfjsReady;
+    }
+
+    async function renderPdfPages() {
+        if (!pdfDoc) return;
+        const token = ++renderToken;
+        body.innerHTML = "";
+        const baseWidth = body.clientWidth || 360;
+        const dpr = window.devicePixelRatio || 1;
+        for (let n = 1; n <= pdfDoc.numPages; n++) {
+            const page = await pdfDoc.getPage(n);
+            if (token !== renderToken) return; // superseded
+            const unit = page.getViewport({ scale: 1 });
+            const cssWidth = baseWidth * pdfZoom;
+            const viewport = page.getViewport({ scale: (cssWidth / unit.width) * dpr });
+            const canvas = document.createElement("canvas");
+            canvas.className = "doc-viewer-page";
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.width = cssWidth + "px";
+            canvas.style.height = (cssWidth * unit.height / unit.width) + "px";
+            await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+            if (token !== renderToken) return;
+            body.appendChild(canvas);
+        }
+    }
+
+    async function openPdf(src) {
+        body.innerHTML = '<div class="doc-viewer-loading"><div class="loading-spinner"></div></div>';
+        let lib;
+        try { lib = await ensurePdfJs(); }
+        catch { body.innerHTML = '<p class="doc-viewer-error">Couldn’t load the PDF viewer. Tap “Open ↗” to view it.</p>'; return; }
+        try { pdfDoc = await lib.getDocument(src).promise; }
+        catch { body.innerHTML = '<p class="doc-viewer-error">Couldn’t open this PDF. Tap “Open ↗” to view it.</p>'; return; }
+        pdfZoom = 1;
+        if (zoomWrap) zoomWrap.classList.remove("hidden");
+        await renderPdfPages();
+    }
+
+    function openImage(src, title) {
+        const img = document.createElement("img");
+        img.className = "doc-viewer-image";
+        img.src = src;
+        img.alt = title || "";
+        body.innerHTML = "";
+        body.appendChild(img);
+    }
 
     function openDoc(src, title, type) {
         titleEl.textContent = title || "";
         if (extEl) extEl.href = src;
-        body.innerHTML = "";
-        if (type === "image") {
-            const img = document.createElement("img");
-            img.className = "doc-viewer-image";
-            img.src = src;
-            img.alt = title || "";
-            body.appendChild(img);
-        } else {
-            const frame = document.createElement("iframe");
-            frame.className = "doc-viewer-frame";
-            frame.src = src;
-            frame.title = title || "Document";
-            body.appendChild(frame);
-        }
+        pdfDoc = null;
+        renderToken++;
+        if (zoomWrap) zoomWrap.classList.add("hidden");
         body.scrollTop = 0;
         viewer.classList.remove("hidden");
+        if (type === "image") openImage(src, title);
+        else openPdf(src);
     }
 
     function closeDoc() {
         viewer.classList.add("hidden");
         body.innerHTML = ""; // stop loading / free memory
+        pdfDoc = null;
+        renderToken++;
+    }
+
+    function setZoom(delta) {
+        const next = Math.min(3, Math.max(0.5, +(pdfZoom + delta).toFixed(2)));
+        if (next === pdfZoom) return;
+        pdfZoom = next;
+        renderPdfPages();
     }
 
     backBtn?.addEventListener("click", closeDoc);
+    zoomIn?.addEventListener("click", () => setZoom(0.25));
+    zoomOut?.addEventListener("click", () => setZoom(-0.25));
 
     document.querySelectorAll(".resource-link[data-doc]").forEach((a) => {
         a.addEventListener("click", (e) => {

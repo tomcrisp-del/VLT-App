@@ -3220,7 +3220,7 @@ function buildOwlCard(u) {
     if (u.email === STEWARD_EMAIL) {
         prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Steward</span>';
     } else if (ASSISTANT_STEWARD_EMAILS.includes((u.email || '').toLowerCase())) {
-        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>VLT Assistant Steward</span>';
+        prefsHTML = '<span class="owl-pref-pill owl-pref-steward">All Trails<br>ASST. Steward</span>';
     } else {
         const prefs = (u.preferredTrails || []).slice(0, PREFERRED_TRAILS_MAX);
         prefsHTML = prefs.length
