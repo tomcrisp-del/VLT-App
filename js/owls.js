@@ -3538,13 +3538,13 @@ async function postSightingComment(id) {
 }
 
 async function deleteSighting(id) {
-    const ok = await confirmAction('Delete this sighting?', 'This removes it for everyone. This cannot be undone.', 'Delete');
+    const ok = await confirmAction('Delete this note?', 'This removes it for everyone. This cannot be undone.', 'Delete');
     if (!ok) return;
     try {
         await db.collection('sightings').doc(id).delete();
         sightings = sightings.filter(s => s.id !== id);
         renderSightingsFeed();
-        showIssueToast('Sighting deleted.');
+        showIssueToast('Note deleted.');
     } catch (e) { console.error('delete sighting:', e); showIssueToast('Could not delete.'); }
 }
 
@@ -3563,7 +3563,7 @@ function openSightingComposer() {
     document.getElementById('sighting-progress').classList.add('hidden');
     document.getElementById('sighting-progress-fill').style.width = '0%';
     const btn = document.getElementById('sighting-submit-btn');
-    btn.disabled = false; btn.textContent = 'Post Sighting';
+    btn.disabled = false; btn.textContent = 'Post Note';
     document.getElementById('sighting-composer').classList.remove('hidden');
 }
 function closeSightingComposer() { document.getElementById('sighting-composer').classList.add('hidden'); }
@@ -3591,7 +3591,7 @@ async function submitSighting() {
         console.error('Sighting photo upload failed:', e);
         errorEl.textContent = 'Photo upload failed — try again or pick another photo.';
         progressEl.classList.add('hidden');
-        btn.disabled = false; btn.textContent = 'Post Sighting';
+        btn.disabled = false; btn.textContent = 'Post Note';
         return;
     }
     try {
@@ -3605,13 +3605,13 @@ async function submitSighting() {
             comments: [],
         });
         closeSightingComposer();
-        showIssueToast('Sighting posted ✓');
+        showIssueToast('Note posted ✓');
         loadSightings();
     } catch (e) {
         console.error('submitSighting:', e);
         errorEl.textContent = 'Could not post — please try again.';
         progressEl.classList.add('hidden');
-        btn.disabled = false; btn.textContent = 'Post Sighting';
+        btn.disabled = false; btn.textContent = 'Post Note';
     }
 }
 
