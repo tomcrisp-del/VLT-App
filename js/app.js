@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.3.5";
+const APP_VERSION = "1.3.6";
 
 const properties = [
     {
@@ -1914,19 +1914,34 @@ async function showProperty(prop) {
         detailMap = null;
     }
     detailMap = L.map("detail-map", { zoomControl: false });
-    const detailTileLayer = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-        {
-            attribution: "Map data &copy; Google",
-            maxZoom: 20,
-        }
-    ).addTo(detailMap);
 
-    // Hide loading indicator when tile layer loads
+    // Two base layers the user can toggle between (matches the All Trails map).
+    const detailSatellite = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        { attribution: "Map data &copy; Google", maxZoom: 20 }
+    );
+    // USGS topographic quads — contour lines, no API key. maxNativeZoom lets it
+    // upscale past its native zoom so it stays usable at the satellite's deeper
+    // zoom levels instead of going blank.
+    const detailTopo = L.tileLayer(
+        "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "Tiles &copy; USGS The National Map", maxNativeZoom: 16, maxZoom: 20 }
+    );
+
+    const detailTileLayer = detailSatellite.addTo(detailMap); // satellite is the default
+
+    // Hide loading indicator when the active base layer first loads
     detailTileLayer.on('load', function() {
         const loader = document.querySelector('#detail-map .map-loading');
         if (loader) loader.classList.add('hidden');
     });
+
+    // Always-expanded base-layer switcher (Satellite / Topographic)
+    L.control.layers(
+        { "Satellite": detailSatellite, "Topographic": detailTopo },
+        null,
+        { position: "topright", collapsed: false }
+    ).addTo(detailMap);
     L.control.zoom({ position: "bottomright" }).addTo(detailMap);
     // "My Location" on a single-preserve map — no snap (already in one preserve),
     // just center on the user and drop the blue dot.
@@ -2318,7 +2333,9 @@ function closeIdentify() {
 }
 
 (function setupIdentify() {
-    const btn      = document.getElementById("wildlife-identify-btn");
+    // Both the global Wildlife page and each preserve's Wildlife tab have a
+    // camera button (class wildlife-identify-trigger); wire them all.
+    const triggers = document.querySelectorAll(".wildlife-identify-trigger");
     const input    = document.getElementById("wildlife-identify-input");
     const modal    = document.getElementById("identify-modal");
     const closeBtn = document.getElementById("identify-close-btn");
@@ -2329,13 +2346,13 @@ function closeIdentify() {
     const statusEl = document.getElementById("identify-status");
     const resultsEl = document.getElementById("identify-results");
 
-    if (!btn || !input || !modal) return;
+    if (!triggers.length || !input || !modal) return;
 
-    btn.addEventListener("click", () => {
+    triggers.forEach((btn) => btn.addEventListener("click", () => {
         closeIdentify();                 // start a fresh session
         modal.classList.remove("hidden");
         setState("collect");
-    });
+    }));
 
     closeBtn?.addEventListener("click", closeIdentify);
     overlay?.addEventListener("click", closeIdentify);
