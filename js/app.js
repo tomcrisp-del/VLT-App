@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.3.7";
+const APP_VERSION = "1.4.3";
 
 const properties = [
     {
@@ -1052,9 +1052,11 @@ function buildTrailCard(prop) {
     // ── Ski difficulty mark (top-right) — uses the trail's hardest rating ──
     if (info && Array.isArray(info.difficulty) && info.difficulty.length) {
         const hardest = info.difficulty.slice().sort((a, b) => (DIFFICULTY_RANK[b] || 0) - (DIFFICULTY_RANK[a] || 0))[0];
+        const meta = DIFFICULTY_META[hardest];
         const ski = document.createElement("div");
         ski.className = "trail-card-ski";
-        ski.innerHTML = skiShapeSVG(hardest, { size: 15 });
+        ski.innerHTML = skiShapeSVG(hardest, { size: 13 }) +
+            `<span class="trail-card-ski-label" style="color:${meta ? meta.color : "#333"}">${meta ? meta.label : hardest}</span>`;
         card.appendChild(ski);
     }
 
@@ -1066,30 +1068,16 @@ function buildTrailCard(prop) {
 }
 
 let trailFilterDiff = "all";    // 'all' or a difficulty key
-let trailLengthSort = "none";   // 'none' | 'asc' (shortest first) | 'desc' (longest first)
 function trailMatchesFilter(p) {
     if (trailFilterDiff === "all") return true;
     const info = TRAIL_INFO[p.folder];
     return !!(info && Array.isArray(info.difficulty) && info.difficulty.includes(trailFilterDiff));
 }
-function trailLengthMi(p) {
-    const info = TRAIL_INFO[p.folder];
-    return info && typeof info.lengthMi === "number" ? info.lengthMi : Infinity;
-}
 function renderTrailGrid() {
     const gridEl = document.getElementById("trail-grid");
     if (!gridEl) return;
     gridEl.innerHTML = "";
-    let list = properties.filter(trailMatchesFilter);
-    if (trailLengthSort !== "none") {
-        const dir = trailLengthSort === "asc" ? 1 : -1;
-        list = list.slice().sort((a, b) => {
-            const la = trailLengthMi(a), lb = trailLengthMi(b);
-            // Trails with no length always sink to the bottom, either direction.
-            if (la === Infinity || lb === Infinity) return la - lb;
-            return (la - lb) * dir;
-        });
-    }
+    const list = properties.filter(trailMatchesFilter);
     if (list.length === 0) {
         const empty = document.createElement("div");
         empty.className = "trail-grid-empty";
@@ -1100,53 +1088,35 @@ function renderTrailGrid() {
     for (const prop of list) gridEl.appendChild(buildTrailCard(prop));
 }
 
-// Build the difficulty filter pills (mirrors the trail-description pills) + a length sort toggle.
+// Build the difficulty filter pills (mirrors the trail-description pills).
 const TRAIL_FILTER_DEFS = [
     { diff: "all", label: "All" },
     { diff: "easy", label: "Easy" },
     { diff: "intermediate", label: "Moderate" },
     { diff: "challenging", label: "Challenging" },
 ];
-const LENGTH_SORT = {
-    none: { label: "Length",   arrow: "↕" },
-    asc:  { label: "Shortest", arrow: "↑" },
-    desc: { label: "Longest",  arrow: "↓" },
-};
 (function buildTrailFilterBar() {
     const bar = document.getElementById("trail-sort-bar");
     if (!bar) return;
     const filters = TRAIL_FILTER_DEFS.map((f) => {
-        const shape = f.diff === "all" ? "" : skiShapeSVG(f.diff, { size: 13, color: "currentColor" });
+        const shape = f.diff === "all" ? "" : skiShapeSVG(f.diff, { size: 11, color: "currentColor" });
         const active = f.diff === "all" ? " active" : "";
-        return `<button class="trail-filter-pill diff-${f.diff}${active}" data-diff="${f.diff}" type="button">${shape}<span>${f.label}</span></button>`;
+        return `<button class="tf-diff-pill diff-${f.diff}${active}" data-diff="${f.diff}" type="button">${shape}<span>${f.label}</span></button>`;
     }).join("");
-    bar.innerHTML = filters +
-        `<span class="trail-bar-sep"></span>` +
-        `<button class="trail-length-sort" type="button"><span class="tls-arrow">${LENGTH_SORT.none.arrow}</span><span class="tls-label">${LENGTH_SORT.none.label}</span></button>`;
+    bar.innerHTML = filters;
 })();
 
 renderTrailGrid();
 
-document.querySelectorAll("#trail-sort-bar .trail-filter-pill").forEach((pill) => {
+document.querySelectorAll("#trail-sort-bar .tf-diff-pill").forEach((pill) => {
     pill.addEventListener("click", () => {
         if (pill.classList.contains("active")) return;
-        document.querySelectorAll("#trail-sort-bar .trail-filter-pill").forEach((p) => p.classList.remove("active"));
+        document.querySelectorAll("#trail-sort-bar .tf-diff-pill").forEach((p) => p.classList.remove("active"));
         pill.classList.add("active");
         trailFilterDiff = pill.dataset.diff;
         renderTrailGrid();
         document.getElementById("list-view")?.scrollTo({ top: 0, behavior: "smooth" });
     });
-});
-
-const lenSortBtn = document.querySelector("#trail-sort-bar .trail-length-sort");
-lenSortBtn?.addEventListener("click", () => {
-    trailLengthSort = trailLengthSort === "none" ? "asc" : trailLengthSort === "asc" ? "desc" : "none";
-    const meta = LENGTH_SORT[trailLengthSort];
-    lenSortBtn.classList.toggle("active", trailLengthSort !== "none");
-    lenSortBtn.querySelector(".tls-arrow").textContent = meta.arrow;
-    lenSortBtn.querySelector(".tls-label").textContent = meta.label;
-    renderTrailGrid();
-    document.getElementById("list-view")?.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 // Stamp the version onto the Resources page so the loaded build is verifiable.
