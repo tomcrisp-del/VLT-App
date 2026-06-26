@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=1.3.6">
+    <link rel="stylesheet" href="css/style.css?v=1.3.7">
 </head>
 <body>
     <!-- Trail List View (main hub) -->
@@ -21,6 +21,7 @@
         <header class="main-banner">
             <img src="Logos/banner.png" alt="Vinalhaven Trail Guide" class="banner-img">
         </header>
+        <div id="trail-sort-bar"></div>
         <div id="trail-grid"></div>
         <!-- Persistent Bottom Navigation -->
         <nav id="main-nav" class="bottom-nav">
@@ -78,7 +79,7 @@
             <div id="wildlife-grid-view">
                 <div id="wildlife-grid-header">
                     <button id="wildlife-back-btn" class="wildlife-nav-btn">&larr; Back</button>
-                    <h2 id="wildlife-grid-title">Wildlife of<br>Vinalhaven</h2>
+                    <h2 id="wildlife-grid-title">Flora &amp; Fauna of<br>Vinalhaven</h2>
                 </div>
                 <div id="wildlife-category-bar">
                     <button class="category-pill active" data-category="all">All</button>
@@ -158,7 +159,7 @@
     <div id="wildlife-view" class="hidden">
         <div id="wildlife-header">
             <button id="wildlife-view-back-btn">&larr; Trails</button>
-            <h2>Wildlife of<br>Vinalhaven</h2>
+            <h2>Flora &amp; Fauna of<br>Vinalhaven</h2>
         </div>
         <div id="global-wildlife-category-bar" class="wildlife-filter-bar">
             <button class="category-pill active" data-category="all">All</button>
@@ -277,7 +278,7 @@
             <!-- Resource Dropdowns -->
             <!-- Wildlife of Vinalhaven — visible to logged-in Owls only -->
             <div id="wildlife-resources-item" class="hidden">
-                <button class="wildlife-resources-btn" id="wildlife-resources-btn">Wildlife of Vinalhaven <span>→</span></button>
+                <button class="wildlife-resources-btn" id="wildlife-resources-btn">Flora &amp; Fauna of Vinalhaven <span>→</span></button>
             </div>
             <!-- Trail Sightings feed — visible to logged-in Owls only -->
             <div id="sightings-resources-item" class="hidden">
@@ -1208,12 +1209,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=1.3.6"></script>
-    <script src="js/app.js?v=1.3.6"></script>
+    <script src="js/wildlife-data.js?v=1.3.7"></script>
+    <script src="js/app.js?v=1.3.7"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=1.3.6"></script>
+    <script src="js/owls.js?v=1.3.7"></script>
 </body>
 </html>

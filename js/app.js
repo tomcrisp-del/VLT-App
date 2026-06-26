@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.3.6";
+const APP_VERSION = "1.3.7";
 
 const properties = [
     {
@@ -301,7 +301,7 @@ const TRAIL_INFO = {
     },
     "Barton's Quarry Preserve": {
         lengthMi: 0.5, routeType: "loop",
-        difficulty: ["very-challenging"],
+        difficulty: ["challenging"],
         features: ["steep", "scenic-views", "shoreline", "historic", "quarry", "boat-access-only"],
     },
     "Basin Preserve (Platform Trail)": {
@@ -396,11 +396,34 @@ const TRAIL_INFO = {
 // ============================================================
 
 const DIFFICULTY_META = {
-    "easy":              { label: "Easy",             color: "#2a9d50" },
-    "intermediate":      { label: "Intermediate",     color: "#2563eb" },
-    "challenging":       { label: "Challenging",      color: "#e07000" },
-    "very-challenging":  { label: "Very Challenging", color: "#dc2626" },
+    "easy":              { label: "Easy",             color: "#2a9d50" },  // green
+    "intermediate":      { label: "Moderate",         color: "#2563eb" },  // blue
+    "challenging":       { label: "Challenging",      color: "#111111" },  // black
+    "very-challenging":  { label: "Very Challenging", color: "#dc2626" },  // red
 };
+
+// Ski-trail difficulty symbols: green circle (easy), blue diamond (moderate),
+// black diamond (challenging), double black diamond (very challenging).
+const SKI_SHAPE_COLOR = { "easy": "#2a9d50", "intermediate": "#2563eb", "challenging": "#111111", "very-challenging": "#111111" };
+function skiShapeSVG(diff, opts) {
+    opts = opts || {};
+    const s = opts.size || 14;
+    const fill = opts.color || SKI_SHAPE_COLOR[diff] || "#111111";
+    const diamond = (cx) => `<rect x="${cx - 4.5}" y="3.5" width="9" height="9" rx="1.2" transform="rotate(45 ${cx} 8)" fill="${fill}"/>`;
+    if (diff === "easy") {
+        return `<svg class="ski-shape" width="${s}" height="${s}" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="${fill}"/></svg>`;
+    }
+    if (diff === "intermediate") {
+        return `<svg class="ski-shape" width="${s}" height="${s}" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.8" y="2.8" width="10.4" height="10.4" rx="1.4" fill="${fill}"/></svg>`;
+    }
+    if (diff === "challenging") {
+        return `<svg class="ski-shape" width="${s}" height="${s}" viewBox="0 0 16 16" aria-hidden="true">${diamond(8)}</svg>`;
+    }
+    if (diff === "very-challenging") {
+        return `<svg class="ski-shape ski-shape-double" width="${s * 1.7}" height="${s}" viewBox="0 0 28 16" aria-hidden="true">${diamond(8)}${diamond(20)}</svg>`;
+    }
+    return "";
+}
 
 const ROUTE_LABELS = {
     "loop":         "Loop",
@@ -490,7 +513,7 @@ function renderTrailStats(prop, container) {
     const diffPillsHTML = difficulty.map(d => {
         const meta = DIFFICULTY_META[d];
         if (!meta) return "";
-        return `<span class="ts-diff-pill" style="background:${meta.color}">${meta.label}</span>`;
+        return `<span class="ts-diff-item"><span class="ts-diff-pill" style="background:${meta.color}">${meta.label}</span>${skiShapeSVG(d, { size: 15 })}</span>`;
     }).join("");
 
     statsRow.innerHTML =
@@ -983,9 +1006,10 @@ const CARD_FILTERS = {
     "Williams Preserve":                              "saturate(1.30) contrast(1.03) brightness(0.99)",
 };
 
-const gridEl = document.getElementById("trail-grid");
+// ── Front-page trail difficulty filter ──
+const DIFFICULTY_RANK = { "easy": 1, "intermediate": 2, "challenging": 3, "very-challenging": 4 };
 
-properties.forEach((prop) => {
+function buildTrailCard(prop) {
     const owner = prop.owner || "vlt";
     const palette = ownerPlaceholder[owner];
 
@@ -1010,21 +1034,119 @@ properties.forEach((prop) => {
         card.appendChild(img);
     }
 
-    // ── Name label ──
+    const info = TRAIL_INFO[prop.folder];
+
+    // ── Name label (with length when available) ──
     const label = document.createElement("div");
     label.className = "trail-card-label";
-    label.innerHTML = '<span class="trail-card-name">' + (prop.cardName || prop.name).replace(/\n/g, "<br>") + '</span>';
+    let labelHTML = '<span class="trail-card-name">' + (prop.cardName || prop.name).replace(/\n/g, "<br>") + '</span>';
+    if (info && typeof info.lengthMi === "number" && prop.trail && !prop.comingSoon) {
+        labelHTML += '<span class="trail-card-len"> · ' + info.lengthMi + ' mi</span>';
+    }
+    label.innerHTML = labelHTML;
     if (!prop.trail || prop.comingSoon) {
         label.innerHTML += '<span class="coming-soon-badge">Coming Soon</span>';
     }
     card.appendChild(label);
 
+    // ── Ski difficulty mark (top-right) — uses the trail's hardest rating ──
+    if (info && Array.isArray(info.difficulty) && info.difficulty.length) {
+        const hardest = info.difficulty.slice().sort((a, b) => (DIFFICULTY_RANK[b] || 0) - (DIFFICULTY_RANK[a] || 0))[0];
+        const ski = document.createElement("div");
+        ski.className = "trail-card-ski";
+        ski.innerHTML = skiShapeSVG(hardest, { size: 15 });
+        card.appendChild(ski);
+    }
+
     // ── Tap action ──
     if (prop.trail && !prop.comingSoon) {
         card.addEventListener("click", () => showProperty(prop));
     }
+    return card;
+}
 
-    gridEl.appendChild(card);
+let trailFilterDiff = "all";    // 'all' or a difficulty key
+let trailLengthSort = "none";   // 'none' | 'asc' (shortest first) | 'desc' (longest first)
+function trailMatchesFilter(p) {
+    if (trailFilterDiff === "all") return true;
+    const info = TRAIL_INFO[p.folder];
+    return !!(info && Array.isArray(info.difficulty) && info.difficulty.includes(trailFilterDiff));
+}
+function trailLengthMi(p) {
+    const info = TRAIL_INFO[p.folder];
+    return info && typeof info.lengthMi === "number" ? info.lengthMi : Infinity;
+}
+function renderTrailGrid() {
+    const gridEl = document.getElementById("trail-grid");
+    if (!gridEl) return;
+    gridEl.innerHTML = "";
+    let list = properties.filter(trailMatchesFilter);
+    if (trailLengthSort !== "none") {
+        const dir = trailLengthSort === "asc" ? 1 : -1;
+        list = list.slice().sort((a, b) => {
+            const la = trailLengthMi(a), lb = trailLengthMi(b);
+            // Trails with no length always sink to the bottom, either direction.
+            if (la === Infinity || lb === Infinity) return la - lb;
+            return (la - lb) * dir;
+        });
+    }
+    if (list.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "trail-grid-empty";
+        empty.textContent = "No trails at this difficulty.";
+        gridEl.appendChild(empty);
+        return;
+    }
+    for (const prop of list) gridEl.appendChild(buildTrailCard(prop));
+}
+
+// Build the difficulty filter pills (mirrors the trail-description pills) + a length sort toggle.
+const TRAIL_FILTER_DEFS = [
+    { diff: "all", label: "All" },
+    { diff: "easy", label: "Easy" },
+    { diff: "intermediate", label: "Moderate" },
+    { diff: "challenging", label: "Challenging" },
+];
+const LENGTH_SORT = {
+    none: { label: "Length",   arrow: "↕" },
+    asc:  { label: "Shortest", arrow: "↑" },
+    desc: { label: "Longest",  arrow: "↓" },
+};
+(function buildTrailFilterBar() {
+    const bar = document.getElementById("trail-sort-bar");
+    if (!bar) return;
+    const filters = TRAIL_FILTER_DEFS.map((f) => {
+        const shape = f.diff === "all" ? "" : skiShapeSVG(f.diff, { size: 13, color: "currentColor" });
+        const active = f.diff === "all" ? " active" : "";
+        return `<button class="trail-filter-pill diff-${f.diff}${active}" data-diff="${f.diff}" type="button">${shape}<span>${f.label}</span></button>`;
+    }).join("");
+    bar.innerHTML = filters +
+        `<span class="trail-bar-sep"></span>` +
+        `<button class="trail-length-sort" type="button"><span class="tls-arrow">${LENGTH_SORT.none.arrow}</span><span class="tls-label">${LENGTH_SORT.none.label}</span></button>`;
+})();
+
+renderTrailGrid();
+
+document.querySelectorAll("#trail-sort-bar .trail-filter-pill").forEach((pill) => {
+    pill.addEventListener("click", () => {
+        if (pill.classList.contains("active")) return;
+        document.querySelectorAll("#trail-sort-bar .trail-filter-pill").forEach((p) => p.classList.remove("active"));
+        pill.classList.add("active");
+        trailFilterDiff = pill.dataset.diff;
+        renderTrailGrid();
+        document.getElementById("list-view")?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+});
+
+const lenSortBtn = document.querySelector("#trail-sort-bar .trail-length-sort");
+lenSortBtn?.addEventListener("click", () => {
+    trailLengthSort = trailLengthSort === "none" ? "asc" : trailLengthSort === "asc" ? "desc" : "none";
+    const meta = LENGTH_SORT[trailLengthSort];
+    lenSortBtn.classList.toggle("active", trailLengthSort !== "none");
+    lenSortBtn.querySelector(".tls-arrow").textContent = meta.arrow;
+    lenSortBtn.querySelector(".tls-label").textContent = meta.label;
+    renderTrailGrid();
+    document.getElementById("list-view")?.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 // Stamp the version onto the Resources page so the loaded build is verifiable.
