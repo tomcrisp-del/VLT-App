@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.4.3";
+const APP_VERSION = "1.4.4";
 
 const properties = [
     {
@@ -1052,11 +1052,9 @@ function buildTrailCard(prop) {
     // ── Ski difficulty mark (top-right) — uses the trail's hardest rating ──
     if (info && Array.isArray(info.difficulty) && info.difficulty.length) {
         const hardest = info.difficulty.slice().sort((a, b) => (DIFFICULTY_RANK[b] || 0) - (DIFFICULTY_RANK[a] || 0))[0];
-        const meta = DIFFICULTY_META[hardest];
         const ski = document.createElement("div");
         ski.className = "trail-card-ski";
-        ski.innerHTML = skiShapeSVG(hardest, { size: 13 }) +
-            `<span class="trail-card-ski-label" style="color:${meta ? meta.color : "#333"}">${meta ? meta.label : hardest}</span>`;
+        ski.innerHTML = skiShapeSVG(hardest, { size: 15 });
         card.appendChild(ski);
     }
 
