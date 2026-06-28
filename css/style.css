@@ -3161,30 +3161,31 @@ header {
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     padding-bottom: 4px;
 }
 
-/* Edit button on the issue detail (admin or the reporter). */
+/* Edit button on the issue detail (admin or the reporter) — matches the comment
+   button's pill size/spacing so they line up as one consistent row. */
 .issue-detail-edit-btn {
     flex: 0 0 auto;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 5px;
-    background: #eef3ee;
-    color: #2c5f2d;
-    border: 1.5px solid #cdddcd;
-    border-radius: 999px;
-    padding: 5px 14px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 0.78rem;
-    font-weight: 700;
+    gap: 7px;
+    padding: 9px 18px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 22px;
+    background: white;
+    color: #666;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     cursor: pointer;
+    transition: all 0.14s;
     -webkit-tap-highlight-color: transparent;
 }
 
-.issue-detail-edit-btn:active { background: #e0eae0; }
+.issue-detail-edit-btn:active { background: #f0f0f0; }
 .issue-detail-edit-btn.hidden { display: none; }
 .issue-detail-votes {
     display: flex;

@@ -1271,7 +1271,6 @@ function openIssueDetail(issue, issueId) {
     // Embedded mini-map — limited zoom, just the trail polyline + this one pin
     setupIssueDetailMiniMap(issue);
 
-    renderVoteButtons(issue);
     renderComments(issue);
 
     // Edit button — visible to admins (any issue) and the reporter (their own).
@@ -1438,30 +1437,6 @@ function teardownIssueDetailMiniMap() {
     }
 }
 
-function renderVoteButtons(issue) {
-    const upvotes      = issue.upvotes   || [];
-    // Downvotes are now per-member (UID array). Legacy issues may have a
-    // numeric downvoteCount instead — show that as the display value but
-    // any new vote starts populating the proper array.
-    const downvotesArr = Array.isArray(issue.downvotes) ? issue.downvotes : null;
-    const downCount    = downvotesArr ? downvotesArr.length : (issue.downvoteCount || 0);
-    const uid          = currentOwl?.uid;
-    const userUpvoted   = !!uid && upvotes.includes(uid);
-    const userDownvoted = !!uid && !!downvotesArr && downvotesArr.includes(uid);
-
-    const upBtn = document.getElementById('issue-upvote-btn');
-    upBtn.className = 'issue-vote-btn' + (userUpvoted ? ' active-up' : '');
-    document.getElementById('issue-upvote-count').textContent = upvotes.length;
-
-    const downBtn = document.getElementById('issue-downvote-btn');
-    downBtn.className = 'issue-vote-btn' + (userDownvoted ? ' active-down' : '');
-    document.getElementById('issue-downvote-count').textContent = downCount;
-
-    // Disable vote buttons if not logged in
-    upBtn.disabled   = !currentOwl;
-    downBtn.disabled = !currentOwl;
-}
-
 function closeIssueDetail() {
     document.getElementById('issue-detail-panel').classList.add('hidden');
     currentDetailIssue   = null;
@@ -1469,72 +1444,9 @@ function closeIssueDetail() {
     teardownIssueDetailMiniMap();
 }
 
-// One vote per member: up XOR down XOR none. Casting one removes the other.
-async function handleVote(direction) {
-    if (!currentOwl || !currentDetailIssueId) return;
-    if (direction !== 'up' && direction !== 'down') return;
-
-    const issue        = currentDetailIssue;
-    const uid          = currentOwl.uid;
-    const prevUpvotes   = issue.upvotes   || [];
-    const prevDownvotes = Array.isArray(issue.downvotes) ? issue.downvotes : [];
-    const wasUp   = prevUpvotes.includes(uid);
-    const wasDown = prevDownvotes.includes(uid);
-
-    // Decide the next state
-    let nextUp   = prevUpvotes.slice();
-    let nextDown = prevDownvotes.slice();
-    const update = {};
-
-    if (direction === 'up') {
-        if (wasUp) {
-            // Toggle off
-            nextUp = nextUp.filter(u => u !== uid);
-            update.upvotes = firebase.firestore.FieldValue.arrayRemove(uid);
-        } else {
-            nextUp.push(uid);
-            update.upvotes = firebase.firestore.FieldValue.arrayUnion(uid);
-            if (wasDown) {
-                nextDown = nextDown.filter(u => u !== uid);
-                update.downvotes = firebase.firestore.FieldValue.arrayRemove(uid);
-            }
-        }
-    } else { // 'down'
-        if (wasDown) {
-            nextDown = nextDown.filter(u => u !== uid);
-            update.downvotes = firebase.firestore.FieldValue.arrayRemove(uid);
-        } else {
-            nextDown.push(uid);
-            update.downvotes = firebase.firestore.FieldValue.arrayUnion(uid);
-            if (wasUp) {
-                nextUp = nextUp.filter(u => u !== uid);
-                update.upvotes = firebase.firestore.FieldValue.arrayRemove(uid);
-            }
-        }
-    }
-
-    // Optimistic UI
-    issue.upvotes   = nextUp;
-    issue.downvotes = nextDown;
-    renderVoteButtons(issue);
-
-    try {
-        await db.collection('issues').doc(currentDetailIssueId).update(update);
-    } catch (err) {
-        console.error('Vote error:', err);
-        // Roll back the optimistic update
-        issue.upvotes   = prevUpvotes;
-        issue.downvotes = prevDownvotes;
-        renderVoteButtons(issue);
-        showIssueToast('Could not save vote — try again.');
-    }
-}
-
 // Wire up detail panel buttons
 document.getElementById('issue-detail-close').addEventListener('click', closeIssueDetail);
 document.getElementById('issue-detail-backdrop').addEventListener('click', closeIssueDetail);
-document.getElementById('issue-upvote-btn').addEventListener('click',   () => handleVote('up'));
-document.getElementById('issue-downvote-btn').addEventListener('click', () => handleVote('down'));
 document.getElementById('issue-detail-edit-btn')?.addEventListener('click', openIssueEdit);
 
 // Comments toggle + send
