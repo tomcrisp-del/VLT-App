@@ -156,6 +156,12 @@ function updateOwlsView(loggedIn) {
             const btn = document.getElementById(id);
             if (btn) btn.innerHTML = TASKS_BTN_HTML;
         });
+
+        // Admins get a notification badge (nav dot + home-icon badge) for
+        // issues awaiting approval. Re-run after the nav labels are set so the
+        // dot attaches to the freshly-rendered Tasks buttons.
+        if (currentOwl.isAdmin) startAdminBadgePolling();
+        else stopAdminBadgePolling();
         const wildlifeDetailTab = document.querySelector('.detail-tab[data-tab="wildlife"]');
         if (wildlifeDetailTab) wildlifeDetailTab.innerHTML = TASKS_BTN_HTML;
 
@@ -172,6 +178,7 @@ function updateOwlsView(loggedIn) {
         profileCard.classList.add('hidden');
         if (becomeOwlBtn) becomeOwlBtn.style.display = '';
         if (adminSection)  adminSection.classList.add('hidden');
+        stopAdminBadgePolling();
         const availSection = document.getElementById('owl-availability-section');
         if (availSection) availSection.classList.add('hidden');
         const prefSection = document.getElementById('owl-preferred-trails-section');
@@ -203,6 +210,68 @@ function updateOwlsView(loggedIn) {
         if (typeof window.onDetailMapLeaving === 'function') window.onDetailMapLeaving();
     }
 }
+
+// ── Admin notification badge ─────────────────────────────────
+// Shows admins how many trail issues are awaiting approval — as a red dot on
+// the bottom-nav Tasks button (every screen) and, on an installed iPhone PWA,
+// on the home-screen app icon. The icon badge only updates while the app is
+// open (no background push), so we also refresh on focus and on a timer.
+let adminBadgeTimer = null;
+
+function setNavBadge(count) {
+    WILDLIFE_NAV_IDS.forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        let badge = btn.querySelector('.nav-badge');
+        if (count > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'nav-badge';
+                btn.appendChild(badge);
+            }
+            badge.textContent = count > 9 ? '9+' : String(count);
+            badge.classList.remove('hidden');
+        } else if (badge) {
+            badge.classList.add('hidden');
+        }
+    });
+}
+
+function setAppIconBadge(count) {
+    try {
+        if (count > 0 && 'setAppBadge' in navigator) navigator.setAppBadge(count);
+        else if ('clearAppBadge' in navigator) navigator.clearAppBadge();
+    } catch (_) { /* unsupported browser — ignore */ }
+}
+
+async function refreshAdminBadge() {
+    if (!currentOwl || !currentOwl.isAdmin) { setNavBadge(0); setAppIconBadge(0); return; }
+    try {
+        const snap = await db.collection('issues').where('status', '==', 'pending_approval').get();
+        setNavBadge(snap.size);
+        setAppIconBadge(snap.size);
+    } catch (e) {
+        console.warn('admin badge refresh:', e.message);
+    }
+}
+
+function startAdminBadgePolling() {
+    refreshAdminBadge();
+    if (adminBadgeTimer) clearInterval(adminBadgeTimer);
+    adminBadgeTimer = setInterval(refreshAdminBadge, 5 * 60 * 1000); // every 5 min while open
+}
+
+function stopAdminBadgePolling() {
+    if (adminBadgeTimer) { clearInterval(adminBadgeTimer); adminBadgeTimer = null; }
+    setNavBadge(0);
+    setAppIconBadge(0);
+}
+
+// Re-check the moment the app is brought back to the foreground.
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentOwl && currentOwl.isAdmin) refreshAdminBadge();
+});
+window.refreshAdminBadge = refreshAdminBadge;
 
 // ── Modal Controls ───────────────────────────────────────────
 let pendingLoginEmail = null;  // email of the account picked in the name list
@@ -1615,6 +1684,7 @@ async function approveSubmission(issueId, btn) {
         renderTasks();
         if (typeof renderAdminIssues === 'function') renderAdminIssues();
         if (typeof refreshAdminStats === 'function') refreshAdminStats();
+        refreshAdminBadge();
         showIssueToast('Approved — now visible on the map ✓');
     } catch (e) {
         console.error('approveSubmission error:', e);
@@ -2600,6 +2670,7 @@ async function adminDeleteIssue(issueId, btn) {
         allAdminIssues = allAdminIssues.filter(i => i.id !== issueId);
         renderAdminIssues();
         refreshAdminStats();
+        refreshAdminBadge();
         showIssueToast('Issue deleted.');
     } catch (err) {
         console.error('adminDeleteIssue error:', err);
