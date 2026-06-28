@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.4.5";
+const APP_VERSION = "1.4.9";
 
 const properties = [
     {
@@ -2051,6 +2051,9 @@ async function showProperty(prop) {
 
     setTimeout(() => detailMap.invalidateSize(), 50);
 
+    // Offline: only the default cached view exists, so lock zoom/pan/expand.
+    setDetailMapOffline(detailMap, !navigator.onLine);
+
     // Notify owls module that the detail map is ready for controls
     if (typeof window.onDetailMapReady === 'function') window.onDetailMapReady(detailMap, prop);
 
@@ -2767,3 +2770,146 @@ const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf
         });
     });
 })();
+
+// ── Service worker + offline map pre-caching ─────────────────
+// Registers the offline cache (network-first for app code, so ?v= updates keep
+// flowing) and, on first run, downloads each trail's centered satellite+topo
+// view so the maps work offline. A super-thin top bar shows progress; the app
+// stays fully usable meanwhile.
+const PRECACHE_DONE_KEY = "vltMapsPrecached_v1";
+let mapPrecacheStarted = false;
+
+function precacheBarSet(pct) {
+    const bar = document.getElementById("map-precache-bar");
+    const fill = document.getElementById("map-precache-fill");
+    if (!bar || !fill) return;
+    bar.classList.remove("hidden");
+    fill.style.width = Math.max(2, Math.min(100, pct)) + "%";
+}
+function precacheBarHide() {
+    document.getElementById("map-precache-bar")?.classList.add("hidden");
+}
+
+function lngToTileX(lng, z) { return Math.floor((lng + 180) / 360 * Math.pow(2, z)); }
+function latToTileY(lat, z) {
+    const r = lat * Math.PI / 180;
+    return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z));
+}
+
+// Tile URLs covering one displayed view. Satellite uses the display zoom; USGS
+// topo only exists to z16, so it's requested at min(z,16). The displayed bounds
+// already span the whole viewport, so the edge tiles cover it — no padding ring.
+function viewTileUrls(b, zoom) {
+    const out = [];
+    const span = (zz) => {
+        const m = Math.pow(2, zz), cl = (v) => Math.max(0, Math.min(m - 1, v));
+        return {
+            x0: cl(lngToTileX(b.getWest(), zz)), x1: cl(lngToTileX(b.getEast(), zz)),
+            y0: cl(latToTileY(b.getNorth(), zz)), y1: cl(latToTileY(b.getSouth(), zz)),
+        };
+    };
+    const sat = span(zoom);
+    for (let x = sat.x0; x <= sat.x1; x++)
+        for (let y = sat.y0; y <= sat.y1; y++)
+            out.push(`https://mt1.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${zoom}`);
+    const zt = Math.min(zoom, 16);
+    const topo = span(zt);
+    for (let x = topo.x0; x <= topo.x1; x++)
+        for (let y = topo.y0; y <= topo.y1; y++)
+            out.push(`https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/${zt}/${y}/${x}`);
+    return out;
+}
+
+// Walk every trail in a hidden, detail-map-sized map to get each one's exact
+// default view, and collect the tile URLs for both layers.
+async function computeAllTrailTileUrls() {
+    const div = document.createElement("div");
+    const W = window.innerWidth || 390;
+    const H = Math.max(180, Math.round(((window.innerHeight || 740) - 52) / 2));
+    div.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;height:${H}px;`;
+    document.body.appendChild(div);
+    const tmap = L.map(div, { zoomControl: false, attributionControl: false, maxZoom: 20 });
+    const urls = new Set();
+    for (const prop of properties) {
+        if (!prop.trail || prop.comingSoon) continue;
+        try {
+            const geo = await loadKml(propPath(prop, prop.trail));
+            const layer = L.geoJSON(geo, { filter: (f) => f.geometry.type !== "Point" });
+            const b = layer.getBounds();
+            if (!b || !b.isValid()) continue;
+            tmap.fitBounds(b, { padding: [30, 30] });
+            viewTileUrls(tmap.getBounds(), tmap.getZoom()).forEach((u) => urls.add(u));
+        } catch (e) { /* skip a trail that won't load */ }
+    }
+    tmap.remove();
+    div.remove();
+    return Array.from(urls);
+}
+
+async function maybePrecacheMaps() {
+    if (mapPrecacheStarted) return;
+    if (!("serviceWorker" in navigator) || !navigator.onLine) return;
+    if (localStorage.getItem(PRECACHE_DONE_KEY)) return;
+    if (typeof L === "undefined" || typeof properties === "undefined") return;
+    mapPrecacheStarted = true;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const sw = reg.active || navigator.serviceWorker.controller;
+        if (!sw) { mapPrecacheStarted = false; return; }
+        const urls = await computeAllTrailTileUrls();
+        if (!urls.length) return;
+        precacheBarSet(2);
+        const onMsg = (ev) => {
+            const d = ev.data || {};
+            if (d.type === "CACHE_TILES_PROGRESS") {
+                precacheBarSet(Math.round((d.done / d.total) * 100));
+            } else if (d.type === "CACHE_TILES_DONE") {
+                precacheBarSet(100);
+                localStorage.setItem(PRECACHE_DONE_KEY, "1");
+                setTimeout(precacheBarHide, 700);
+                navigator.serviceWorker.removeEventListener("message", onMsg);
+            }
+        };
+        navigator.serviceWorker.addEventListener("message", onMsg);
+        sw.postMessage({ type: "CACHE_TILES", urls });
+    } catch (e) {
+        console.warn("precache maps:", e);
+        precacheBarHide();
+        mapPrecacheStarted = false;
+    }
+}
+
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js")
+            .then(() => { setTimeout(maybePrecacheMaps, 3000); }) // let the app settle first
+            .catch((e) => console.warn("SW register failed:", e));
+    });
+    // If they were offline at launch, kick it off when they reconnect.
+    window.addEventListener("online", () => { setTimeout(maybePrecacheMaps, 1500); });
+}
+window.maybePrecacheMaps = maybePrecacheMaps;
+
+// ── Offline map lock ─────────────────────────────────────────
+// Offline we only have each trail's default cached view, so disable zoom, pan,
+// and Expand (which would request uncached tiles) and show a small hint. The
+// Satellite/Topographic toggle keeps working — both layers are cached.
+function setDetailMapOffline(map, offline) {
+    if (!map) return;
+    ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
+        .forEach((h) => { if (map[h]) offline ? map[h].disable() : map[h].enable(); });
+    const c = map.getContainer();
+    c.classList.toggle("map-offline", offline);
+    let hint = c.querySelector(".map-offline-hint");
+    if (offline && !hint) {
+        hint = document.createElement("div");
+        hint.className = "map-offline-hint";
+        hint.textContent = "Offline · saved map";
+        c.appendChild(hint);
+    } else if (!offline && hint) {
+        hint.remove();
+    }
+}
+
+window.addEventListener("offline", () => setDetailMapOffline(detailMap, true));
+window.addEventListener("online", () => setDetailMapOffline(detailMap, false));
