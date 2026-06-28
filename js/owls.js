@@ -1070,6 +1070,13 @@ function openIssueDetail(issue, issueId) {
     renderVoteButtons(issue);
     renderComments(issue);
 
+    // Edit button — visible to admins (any issue) and the reporter (their own).
+    const editBtn = document.getElementById('issue-detail-edit-btn');
+    if (editBtn) {
+        const canEdit = !!currentOwl && (currentOwl.isAdmin || issue.reportedBy?.uid === currentOwl.uid);
+        editBtn.classList.toggle('hidden', !canEdit);
+    }
+
     document.getElementById('issue-detail-panel').classList.remove('hidden');
 }
 
@@ -1324,6 +1331,7 @@ document.getElementById('issue-detail-close').addEventListener('click', closeIss
 document.getElementById('issue-detail-backdrop').addEventListener('click', closeIssueDetail);
 document.getElementById('issue-upvote-btn').addEventListener('click',   () => handleVote('up'));
 document.getElementById('issue-downvote-btn').addEventListener('click', () => handleVote('down'));
+document.getElementById('issue-detail-edit-btn')?.addEventListener('click', openIssueEdit);
 
 // Comments toggle + send
 document.getElementById('issue-comments-btn').addEventListener('click', () => {
@@ -2683,10 +2691,7 @@ async function adminDeleteIssue(issueId, btn) {
 let adminEditId       = null;
 let adminEditSeverity = null;
 
-function openAdminEdit(issueId) {
-    if (!currentOwl?.isAdmin) return;
-    const issue = allAdminIssues.find(i => i.id === issueId);
-    if (!issue) return;
+function populateEditPanel(issue, issueId) {
     adminEditId       = issueId;
     adminEditSeverity = issue.severity || null;
 
@@ -2708,13 +2713,35 @@ function openAdminEdit(issueId) {
     document.getElementById('admin-edit-panel').classList.remove('hidden');
 }
 
+// Admin-panel edit (admin only) — issue comes from the admin cache.
+function openAdminEdit(issueId) {
+    if (!currentOwl?.isAdmin) return;
+    const issue = allAdminIssues.find(i => i.id === issueId);
+    if (!issue) return;
+    populateEditPanel(issue, issueId);
+}
+
+// Issue-detail edit (Tasks page) — admins on any issue, the reporter on theirs.
+function openIssueEdit() {
+    const issue = currentDetailIssue, issueId = currentDetailIssueId;
+    if (!issue || !issueId || !currentOwl) return;
+    if (!(currentOwl.isAdmin || issue.reportedBy?.uid === currentOwl.uid)) return;
+    populateEditPanel(issue, issueId);
+}
+
 function closeAdminEdit() {
     document.getElementById('admin-edit-panel').classList.add('hidden');
     adminEditId = null;
 }
 
 async function saveAdminEdit() {
-    if (!currentOwl?.isAdmin || !adminEditId) return;
+    if (!currentOwl || !adminEditId) return;
+    // Find the issue in whichever cache holds it, to check permission + sync.
+    const cached = (currentDetailIssue && currentDetailIssueId === adminEditId) ? currentDetailIssue
+        : (allAdminIssues.find(i => i.id === adminEditId) || (typeof allTasks !== 'undefined' && allTasks.find(t => t.id === adminEditId)));
+    const allowed = currentOwl.isAdmin || cached?.reportedBy?.uid === currentOwl.uid;
+    if (!allowed) return;
+
     const errorEl = document.getElementById('admin-edit-error');
     const saveBtn = document.getElementById('admin-edit-save-btn');
     const title   = document.getElementById('admin-edit-title').value.trim();
@@ -2730,10 +2757,21 @@ async function saveAdminEdit() {
     const changes = { title, category, severity: adminEditSeverity, description: desc || null };
     try {
         await db.collection('issues').doc(adminEditId).update(changes);
-        const issue = allAdminIssues.find(i => i.id === adminEditId);
-        if (issue) Object.assign(issue, changes);
-        renderAdminIssues();
+        // Sync every cached copy of this issue.
+        [allAdminIssues, (typeof allTasks !== 'undefined' ? allTasks : null)].forEach(arr => {
+            const it = arr && arr.find(x => x.id === adminEditId);
+            if (it) Object.assign(it, changes);
+        });
+        const editedId = adminEditId;
+        if (currentDetailIssue && currentDetailIssueId === editedId) Object.assign(currentDetailIssue, changes);
+        if (typeof renderAdminIssues === 'function') renderAdminIssues();
+        if (typeof renderTasks === 'function') renderTasks();
         closeAdminEdit();
+        // If the issue detail is open on this issue, refresh it to show the edits.
+        const detailPanel = document.getElementById('issue-detail-panel');
+        if (currentDetailIssue && currentDetailIssueId === editedId && detailPanel && !detailPanel.classList.contains('hidden')) {
+            openIssueDetail(currentDetailIssue, editedId);
+        }
         showIssueToast('Issue updated ✓');
     } catch (err) {
         console.error('saveAdminEdit error:', err);
