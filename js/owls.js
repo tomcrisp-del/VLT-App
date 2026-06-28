@@ -8,6 +8,13 @@ const WILDLIFE_NAV_IDS = [
     'activities-nav-wildlife', 'owls-nav-wildlife', 'events-nav-wildlife',
 ];
 
+// The Volunteer (Owls) bottom-nav button across every view — the admin
+// "needs approval" badge lives here, since that's where you go to address it.
+const VOLUNTEER_NAV_IDS = [
+    'nav-owls', 'wildlife-nav-owls', 'map-nav-owls', 'activities-nav-owls',
+    'owls-nav-owls', 'events-nav-owls', 'tasks-nav-owls',
+];
+
 const WILDLIFE_BTN_HTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.5S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg><span>Wildlife</span>`;
 
 const TASKS_BTN_HTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><span>Tasks</span>`;
@@ -215,13 +222,13 @@ function updateOwlsView(loggedIn) {
 
 // ── Admin notification badge ─────────────────────────────────
 // Shows admins how many trail issues are awaiting approval — as a red dot on
-// the bottom-nav Tasks button (every screen) and, on an installed iPhone PWA,
+// the bottom-nav Volunteer button (every screen) and, on an installed iPhone PWA,
 // on the home-screen app icon. The icon badge only updates while the app is
 // open (no background push), so we also refresh on focus and on a timer.
 let adminBadgeTimer = null;
 
 function setNavBadge(count) {
-    WILDLIFE_NAV_IDS.forEach(id => {
+    VOLUNTEER_NAV_IDS.forEach(id => {
         const btn = document.getElementById(id);
         if (!btn) return;
         let badge = btn.querySelector('.nav-badge');
@@ -1549,8 +1556,10 @@ async function loadTasks() {
     // them again once the data is in.
     const calloutEl = document.getElementById('tasks-callout');
     const filterBarEl = document.getElementById('trail-filter-bar');
-    if (calloutEl)   calloutEl.style.display   = 'none';
-    if (filterBarEl) filterBarEl.style.display = 'none';
+    const pendingStripEl = document.getElementById('tasks-pending-strip');
+    if (calloutEl)      calloutEl.style.display   = 'none';
+    if (filterBarEl)    filterBarEl.style.display = 'none';
+    if (pendingStripEl) pendingStripEl.classList.add('hidden');
 
     try {
         // One fetch powers all three tabs; client-side filtering per tab.
@@ -1616,6 +1625,7 @@ function renderTasks() {
     const bar     = document.getElementById('trail-filter-bar');
     if (callout) callout.style.display = '';
     if (bar)     bar.style.display     = '';
+    renderPendingSubmissionsStrip();
     return renderTrailGrouped();
 }
 
@@ -1624,9 +1634,6 @@ function renderTrailGrouped() {
     const emptyEl = document.getElementById('tasks-empty');
     if (!feedEl) return;
     feedEl.innerHTML = '';
-
-    // Locally-queued offline reports first, so they're easy to find and fix.
-    const offlineCount = renderOfflineQueuedSection(feedEl);
 
     const uid = currentOwl?.uid;
 
@@ -1669,9 +1676,6 @@ function renderTrailGrouped() {
         : trailFilteredPool;
 
     if (feedPool.length === 0) {
-        // If there are offline cards above, don't show the "all clear" empty
-        // message — the page isn't actually empty.
-        if (offlineCount > 0) { emptyEl.classList.add('hidden'); return; }
         if (urgentOnly && trailFilteredPool.length > 0) {
             emptyEl.textContent = 'No urgent tasks here — nice and quiet.';
         } else if (activeTrailFilter !== '__all') {
@@ -1712,54 +1716,88 @@ function renderTrailGrouped() {
     }
 }
 
-// ── Offline-queued reports on the Tasks page ─────────────────
-// Render a section of reports still sitting in the local offline queue, each
-// editable/removable so a mis-logged offline report can be fixed before it syncs.
-function renderOfflineQueuedSection(feedEl) {
-    if (!offlineQueuedTasks || !offlineQueuedTasks.length) return 0;
-    const header = document.createElement('div');
-    header.className = 'trail-group-header offline-group-header';
-    header.innerHTML =
-        `<span class="trail-group-name">📡 Saved offline — not synced</span>` +
-        `<span class="trail-group-count">${offlineQueuedTasks.length}</span>`;
-    feedEl.appendChild(header);
-    offlineQueuedTasks.forEach(item => feedEl.appendChild(buildOfflineTaskCard(item)));
-    return offlineQueuedTasks.length;
+// ── "Your pending submissions" strip ─────────────────────────
+// A compact, PRIVATE row under the trail filter: reports this owl logged
+// (offline-queued OR online and not yet admin-approved) so they know it went
+// through. Only the reporter sees it — that's the point of admin review.
+let pendingStripExpanded = false;
+
+// All of *this owl's* submissions still awaiting approval, offline + online.
+function myPendingSubmissions() {
+    const uid = currentOwl?.uid;
+    if (!uid) return [];
+    const out = [];
+    // Offline queue lives on this device, so it's inherently this owl's.
+    (offlineQueuedTasks || []).forEach(item => {
+        if (item?.data && (!item.data.reportedBy || item.data.reportedBy.uid === uid)) {
+            out.push({ kind: 'offline', id: item.id, item, data: item.data });
+        }
+    });
+    // Online: pending_approval issues this owl reported (filtered so other owls
+    // never see them here).
+    (allTasks || []).forEach(t => {
+        if (t.status === 'pending_approval' && t.reportedBy?.uid === uid) {
+            out.push({ kind: 'online', id: t.id, issue: t, data: t });
+        }
+    });
+    return out;
 }
 
-function buildOfflineTaskCard(item) {
-    const d        = item.data || {};
-    const colors   = { High: '#dc2626', Medium: '#d97706', Low: '#059669' };
-    const color    = colors[d.severity] || '#888';
-    const catLabel = CATEGORY_LABELS[d.category] || d.category || '';
-    const desc     = (d.description || '').trim();
+function renderPendingSubmissionsStrip() {
+    const strip = document.getElementById('tasks-pending-strip');
+    if (!strip) return;
+    const items = myPendingSubmissions();
+    if (!items.length) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
 
-    const card = document.createElement('div');
-    card.className = 'task-card offline-queued-card';
-    card.innerHTML = `
-        <div class="task-severity-bar" style="background:${color}"></div>
-        <div class="task-card-body">
-            <div class="task-card-head">
-                <span class="task-offline-badge">📡 Saved offline · not synced yet</span>
-            </div>
-            <div class="task-card-head" style="margin-top:6px">
-                ${d.severity ? `<span class="task-sev-pill task-sev-${d.severity}">${d.severity}</span>` : ''}
-                ${catLabel ? `<span class="task-cat-badge">${escapeHtml(catLabel)}</span>` : ''}
-            </div>
-            <h3 class="task-card-title">${escapeHtml(d.title || '(no title)')}</h3>
-            ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
-            ${item.photoBlob ? `<p class="task-card-desc task-offline-photo-note">📷 Photo attached — uploads when you’re back online</p>` : ''}
-            <div class="task-card-meta-line">
-                ${d.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(d.trailName))}</span>` : ''}
-            </div>
-            <div class="task-action-row">
-                <button class="task-info-btn"           data-action="edit-offline">✏️ Edit</button>
-                <button class="task-offline-delete-btn" data-action="delete-offline">🗑 Delete</button>
-            </div>
+    const n = items.length;
+    const summary = `${n} of your report${n === 1 ? '' : 's'} ${n === 1 ? 'is' : 'are'} awaiting approval`;
+
+    const rowsHTML = pendingStripExpanded ? items.map((it, i) => {
+        const d = it.data || {};
+        const sev = d.severity ? `<span class="pending-row-sev sev-${d.severity}">${d.severity[0]}</span>` : '';
+        const meta = it.kind === 'offline' ? 'Saved offline' : 'Pending approval';
+        const del = it.kind === 'offline'
+            ? `<button class="pending-row-del" data-i="${i}" aria-label="Delete">✕</button>` : '';
+        return `<div class="pending-row" data-i="${i}">
+            ${sev}
+            <span class="pending-row-title">${escapeHtml(d.title || '(no title)')}</span>
+            <span class="pending-row-meta">${meta}</span>
+            ${del}
         </div>`;
-    card.querySelector('[data-action="edit-offline"]').addEventListener('click', () => openOfflineEdit(item.id));
-    card.querySelector('[data-action="delete-offline"]').addEventListener('click', () => deleteOfflineQueued(item.id));
-    return card;
+    }).join('') : '';
+
+    strip.classList.remove('hidden');
+    strip.innerHTML = `
+        <button class="pending-strip-toggle" type="button" aria-expanded="${pendingStripExpanded}">
+            <span class="pending-strip-icon">⏳</span>
+            <span class="pending-strip-text">${summary}</span>
+            <span class="pending-strip-chevron">${pendingStripExpanded ? '▴' : '▾'}</span>
+        </button>
+        ${pendingStripExpanded ? `<div class="pending-strip-body">
+            <div class="pending-strip-hint">Only you can see these until an admin approves them.</div>
+            ${rowsHTML}
+        </div>` : ''}`;
+
+    strip.querySelector('.pending-strip-toggle').addEventListener('click', () => {
+        pendingStripExpanded = !pendingStripExpanded;
+        renderPendingSubmissionsStrip();
+    });
+    strip.querySelectorAll('.pending-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('.pending-row-del')) return;   // handled below
+            const it = items[+row.dataset.i];
+            if (!it) return;
+            if (it.kind === 'offline') openOfflineEditItem(it.item);
+            else openIssueDetail(it.issue, it.id);
+        });
+    });
+    strip.querySelectorAll('.pending-row-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const it = items[+btn.dataset.i];
+            if (it && it.kind === 'offline') deleteOfflineQueued(it.id);
+        });
+    });
 }
 
 // Open the shared edit sheet for a queued offline report (saves to IndexedDB,
@@ -2702,6 +2740,10 @@ let adminTrailFilter     = '__all';    // trail filter: '__all' or trail folder
 
 async function openAdminIssuesPanel() {
     if (!currentOwl?.isAdmin) return;
+    // Default to Pending — approving submissions is the reason you open this
+    // panel. Browsing everything is still one tap away (or just use Tasks).
+    adminIssueFilter = 'pending_approval';
+    adminTrailFilter = '__all';
     document.getElementById('admin-issues-panel').classList.remove('hidden');
     const listEl    = document.getElementById('admin-issues-list');
     const emptyEl   = document.getElementById('admin-issues-empty');
@@ -2726,6 +2768,7 @@ async function openAdminIssuesPanel() {
 
     loadingEl.classList.add('hidden');
     renderAdminIssues();
+    highlightAdminStatusPill();   // reflect the Pending default on the chips
 }
 
 function renderAdminIssues() {

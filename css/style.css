@@ -3876,6 +3876,105 @@ header {
 }
 .task-offline-delete-btn:active { background: #fdeaea; }
 
+/* ── "Your pending submissions" strip (private to the reporter) ── */
+.tasks-pending-strip {
+    flex: 0 0 auto;
+    background: #fffbeb;
+    border-bottom: 1px solid #f3e3b3;
+}
+.pending-strip-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    text-align: left;
+}
+.pending-strip-icon { flex: 0 0 auto; font-size: 0.95rem; }
+.pending-strip-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #92702a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pending-strip-chevron { flex: 0 0 auto; color: #b8923c; font-size: 0.75rem; }
+.pending-strip-body { padding: 0 10px 8px; }
+.pending-strip-hint {
+    font-size: 0.72rem;
+    color: #9a7b3a;
+    padding: 0 4px 6px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.pending-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: white;
+    border: 1px solid #f0e2b8;
+    border-radius: 9px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.pending-row:active { background: #fffdf5; }
+.pending-row-sev {
+    flex: 0 0 auto;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.pending-row-sev.sev-High   { background: #dc2626; }
+.pending-row-sev.sev-Medium { background: #d97706; }
+.pending-row-sev.sev-Low    { background: #059669; }
+.pending-row-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #1a3d3d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.pending-row-meta {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #b8923c;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.pending-row-del {
+    flex: 0 0 auto;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1px solid #f0c0c0;
+    background: white;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.pending-row-del:active { background: #fdeaea; }
+
 .task-resolve-btn {
     flex: 1 1 auto;
     padding: 10px 12px;
