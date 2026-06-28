@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.3";
+const APP_VERSION = "1.7.4";
 
 const properties = [
     {
@@ -2279,6 +2279,80 @@ function findContainingProperty(lat, lng) {
     }
     return null;
 }
+
+// ── GEO trail-visit detection ────────────────────────────────
+// "Properly on the trail" = GPS inside a preserve boundary AND within ~45m of
+// that preserve's actual trail line (so the parking lot / a drive-by doesn't
+// count). Geometry is preloaded once (cached by the service worker), so this
+// works even if the user never opened the island map.
+const GEO_TRAIL_THRESHOLD_M = 45;
+let _geoBoundaries = null;   // [{ folder, geojson }]
+let _geoTrailLines = null;   // { folder: [LineString geometry, ...] }
+let _geoPreloadPromise = null;
+
+// Pull every LineString out of a geometry — trail KMLs wrap their paths in a
+// GeometryCollection, so we recurse. MultiLineStrings are split into LineStrings
+// (turf.pointToLineDistance wants a LineString).
+function geoCollectLines(geom, out) {
+    if (!geom) return;
+    if (geom.type === "LineString") out.push(geom);
+    else if (geom.type === "MultiLineString") geom.coordinates.forEach((c) => out.push({ type: "LineString", coordinates: c }));
+    else if (geom.type === "GeometryCollection") (geom.geometries || []).forEach((g) => geoCollectLines(g, out));
+}
+
+function geoPreloadGeometry() {
+    if (_geoPreloadPromise) return _geoPreloadPromise;
+    _geoPreloadPromise = (async () => {
+        const boundaries = [];
+        const trailLines = {};
+        for (const prop of properties) {
+            if (prop.owner === "mcht") continue;   // MCHT opts out of the VLT system
+            if (prop.boundary) {
+                try { const gj = await loadBoundary(prop); if (gj) boundaries.push({ folder: prop.folder, geojson: gj }); }
+                catch (e) { /* skip */ }
+            }
+            if (prop.trail) {
+                try {
+                    const gj = await loadKml(propPath(prop, prop.trail));
+                    const lines = [];
+                    (gj.features || []).forEach((f) => geoCollectLines(f && f.geometry, lines));
+                    if (lines.length) trailLines[prop.folder] = lines;
+                } catch (e) { /* skip */ }
+            }
+        }
+        _geoBoundaries = boundaries;
+        _geoTrailLines = trailLines;
+    })();
+    return _geoPreloadPromise;
+}
+
+// Returns the preserve folder the point is "properly on the trail" in, else null.
+window.geoLocateOnTrail = async (lat, lng) => {
+    if (typeof turf === "undefined") return null;
+    await geoPreloadGeometry();
+    const pt = turf.point([lng, lat]);
+    for (const entry of _geoBoundaries) {
+        const gj = entry.geojson;
+        const feats = gj.features ? gj.features : [gj];
+        let inside = false;
+        for (const f of feats) {
+            const geom = f && f.geometry ? f.geometry : f;
+            if (geom && (geom.type === "Polygon" || geom.type === "MultiPolygon")) {
+                try { if (turf.booleanPointInPolygon(pt, geom)) { inside = true; break; } } catch (e) {}
+            }
+        }
+        if (!inside) continue;
+        const lines = _geoTrailLines[entry.folder];
+        if (!lines || !lines.length) return entry.folder;   // no line data → boundary is enough
+        let minDist = Infinity;
+        for (const line of lines) {
+            try { const d = turf.pointToLineDistance(pt, line, { units: "meters" }); if (d < minDist) minDist = d; } catch (e) {}
+        }
+        // Inside the preserve but far from the trail (e.g. the parking lot) → not "on trail".
+        return minDist <= GEO_TRAIL_THRESHOLD_M ? entry.folder : null;
+    }
+    return null;
+};
 
 function locationDotIcon() {
     return L.divIcon({ className: "location-dot", iconSize: [18, 18], iconAnchor: [9, 9] });

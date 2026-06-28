@@ -11,12 +11,12 @@
     <meta name="apple-mobile-web-app-title" content="OWLS Trails">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2c5f2d">
-    <link rel="manifest" href="manifest.json?v=1.7.3">
+    <link rel="manifest" href="manifest.json?v=1.7.4">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=1.7.3">
+    <link rel="stylesheet" href="css/style.css?v=1.7.4">
 </head>
 <body>
     <!-- Thin offline-map download progress bar (auto-shows only while caching) -->
@@ -558,6 +558,7 @@
                 </div>
                 <button id="owl-admin-issues-btn"  class="owl-section-btn">Manage All Issues &rarr;</button>
                 <button id="owl-admin-members-btn" class="owl-section-btn">Manage Members &rarr;</button>
+                <button id="owl-admin-geolog-btn"  class="owl-section-btn">Trail Visit Log &rarr;</button>
             </div>
 
             <!-- Preferred Trails (logged-in only) — saves live, max 5 -->
@@ -1067,6 +1068,20 @@
         </div>
     </div>
 
+    <!-- Admin: Trail Visit Log (GEO) -->
+    <div id="admin-geolog-panel" class="hidden">
+        <div class="admin-panel-header admin-panel-header-row">
+            <button id="admin-geolog-back-btn" class="admin-hdr-btn">&larr; Back</button>
+            <h2 class="admin-panel-title">Trail Visits</h2>
+            <button id="admin-geolog-refresh-btn" class="admin-hdr-btn">↻</button>
+        </div>
+        <div id="admin-geolog-list" class="admin-list"></div>
+        <div id="admin-geolog-empty"   class="admin-empty hidden">No trail visits logged yet.</div>
+        <div id="admin-geolog-loading" class="tasks-loading">
+            <div class="loading-spinner"></div><p>Loading…</p>
+        </div>
+    </div>
+
     <!-- Admin: Add User (new owl) bottom sheet -->
     <div id="admin-adduser-panel" class="hidden">
         <div class="issue-form-backdrop" id="admin-adduser-backdrop"></div>
@@ -1239,12 +1254,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=1.7.3"></script>
-    <script src="js/app.js?v=1.7.3"></script>
+    <script src="js/wildlife-data.js?v=1.7.4"></script>
+    <script src="js/app.js?v=1.7.4"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=1.7.3"></script>
+    <script src="js/owls.js?v=1.7.4"></script>
 </body>
 </html>

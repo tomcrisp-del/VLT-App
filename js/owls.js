@@ -98,10 +98,13 @@ auth.onAuthStateChanged(async (user) => {
         if (issueMapRef && _issueInfraProp && !_issueInfraReady) {
             setupTrailIssueInfra(issueMapRef, _issueInfraProp);
         }
+        // Start logging trail visits for this owl while the app is open.
+        startGeoTracking();
         // Flush any reports queued while offline.
         setTimeout(syncOfflineReports, 2500);
     } else {
         currentOwl = null;
+        stopGeoTracking();
         updateOwlsView(false);
     }
 });
@@ -313,6 +316,72 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden && currentOwl && currentOwl.isAdmin) refreshAdminBadge();
 });
 window.refreshAdminBadge = refreshAdminBadge;
+
+// ── GEO trail-visit log ──────────────────────────────────────
+// While a signed-in owl has the app open, watch their GPS. Once they've been
+// "properly on the trail" (inside a preserve boundary AND near its trail line —
+// see geoLocateOnTrail in app.js) continuously for 5+ minutes, log one visit to
+// Firestore for the admin Trail Visit Log. Web apps can't track in the
+// background, so this only runs while the app is open.
+const GEO_DWELL_MS = 5 * 60 * 1000;   // on-trail this long before it counts
+const GEO_GRACE_MS = 90 * 1000;       // tolerate brief GPS dropouts mid-visit
+const GEO_MAX_ACCURACY_M = 60;        // ignore very fuzzy fixes
+let _geoWatchId = null;
+let _geoVisit   = null;               // { folder, firstSeen, lastSeen, logged }
+
+function startGeoTracking() {
+    if (_geoWatchId !== null || !currentOwl || !navigator.geolocation) return;
+    _geoWatchId = navigator.geolocation.watchPosition(
+        onGeoFix,
+        () => { /* position error — ignore, try again on next fix */ },
+        { enableHighAccuracy: true, maximumAge: 20000, timeout: 30000 }
+    );
+}
+function stopGeoTracking() {
+    if (_geoWatchId !== null) { navigator.geolocation.clearWatch(_geoWatchId); _geoWatchId = null; }
+    _geoVisit = null;
+}
+
+async function onGeoFix(pos) {
+    if (!currentOwl) return;
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    if (accuracy != null && accuracy > GEO_MAX_ACCURACY_M) return;   // too fuzzy to trust
+
+    let folder = null;
+    try { folder = window.geoLocateOnTrail ? await window.geoLocateOnTrail(lat, lng) : null; }
+    catch (_) { folder = null; }
+
+    const now = Date.now();
+    if (folder) {
+        if (_geoVisit && _geoVisit.folder === folder) {
+            _geoVisit.lastSeen = now;
+            if (!_geoVisit.logged && (now - _geoVisit.firstSeen) >= GEO_DWELL_MS) {
+                _geoVisit.logged = true;
+                logTrailVisit(folder, lat, lng, _geoVisit.firstSeen);
+            }
+        } else {
+            _geoVisit = { folder, firstSeen: now, lastSeen: now, logged: false };
+        }
+    } else if (_geoVisit && (now - _geoVisit.lastSeen) > GEO_GRACE_MS) {
+        _geoVisit = null;   // off-trail long enough → visit ended
+    }
+}
+
+async function logTrailVisit(folder, lat, lng, enteredAtMs) {
+    try {
+        await db.collection('trailVisits').add({
+            uid:         currentOwl.uid,
+            displayName: currentOwl.displayName || currentOwl.email || 'Owl',
+            trailName:   folder,
+            lat, lng,
+            enteredAt:   firebase.firestore.Timestamp.fromMillis(enteredAtMs),
+            loggedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        if (typeof showIssueToast === 'function') showIssueToast('📍 Trail visit logged — thanks for getting out there!');
+    } catch (e) {
+        console.warn('trail visit log failed:', e.message);
+    }
+}
 
 // ── Modal Controls ───────────────────────────────────────────
 let pendingLoginEmail = null;  // email of the account picked in the name list
@@ -3250,6 +3319,60 @@ async function removeMember(uid, btn) {
 document.getElementById('owl-admin-members-btn').addEventListener('click', openAdminMembersPanel);
 document.getElementById('admin-members-back-btn').addEventListener('click', () => {
     document.getElementById('admin-members-panel').classList.add('hidden');
+});
+
+// ── Admin: Trail Visit Log (GEO) ──────────────────────────────
+async function openGeoLogPanel() {
+    if (!currentOwl?.isAdmin) return;
+    document.getElementById('admin-geolog-panel').classList.remove('hidden');
+    const listEl    = document.getElementById('admin-geolog-list');
+    const emptyEl   = document.getElementById('admin-geolog-empty');
+    const loadingEl = document.getElementById('admin-geolog-loading');
+    listEl.innerHTML = '';
+    emptyEl.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+
+    let visits = [];
+    try {
+        const snap = await db.collection('trailVisits').orderBy('loggedAt', 'desc').limit(300).get();
+        snap.forEach(doc => visits.push({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+        // Falls here if the composite/order index is missing or rules block reads.
+        console.error('loadTrailVisits error:', err);
+        try {
+            const snap = await db.collection('trailVisits').get();   // unordered fallback
+            snap.forEach(doc => visits.push({ id: doc.id, ...doc.data() }));
+            visits.sort((a, b) => (b.loggedAt?.toMillis?.() || 0) - (a.loggedAt?.toMillis?.() || 0));
+        } catch (e2) { console.error('loadTrailVisits fallback:', e2); }
+    }
+
+    loadingEl.classList.add('hidden');
+    if (!visits.length) { emptyEl.classList.remove('hidden'); return; }
+    emptyEl.classList.add('hidden');
+    visits.forEach(v => listEl.appendChild(buildGeoLogRow(v)));
+}
+
+function buildGeoLogRow(v) {
+    const when = v.loggedAt?.toDate ? v.loggedAt.toDate() : null;
+    const dateStr = when
+        ? when.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+          ' · ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        : '';
+    const row = document.createElement('div');
+    row.className = 'geolog-row';
+    row.innerHTML =
+        `<div class="geolog-row-main">` +
+            `<span class="geolog-owl">${escapeHtml(v.displayName || 'Owl')}</span>` +
+            `<span class="geolog-trail">${escapeHtml(trailLabel(v.trailName) || v.trailName || '')}</span>` +
+        `</div>` +
+        `<span class="geolog-date">${escapeHtml(dateStr)}</span>`;
+    return row;
+}
+
+document.getElementById('owl-admin-geolog-btn')?.addEventListener('click', openGeoLogPanel);
+document.getElementById('admin-geolog-refresh-btn')?.addEventListener('click', openGeoLogPanel);
+document.getElementById('admin-geolog-back-btn')?.addEventListener('click', () => {
+    document.getElementById('admin-geolog-panel').classList.add('hidden');
 });
 
 // ── Admin: Add User (create a new owl on the go) ──────────────
