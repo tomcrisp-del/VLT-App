@@ -3159,14 +3159,16 @@ header {
 /* Reactions block — vote buttons + comment button on top, hint below */
 .issue-detail-actions {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding-bottom: 4px;
 }
 
 /* Edit button on the issue detail (admin or the reporter). */
 .issue-detail-edit-btn {
-    align-self: flex-start;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -4852,7 +4854,8 @@ header {
     gap: 6px;
     margin-top: 6px;
 }
-.admin-issue-actions .admin-edit-btn {
+.admin-issue-actions .admin-edit-btn,
+.admin-issue-actions .admin-info-btn {
     border-color: #3d8b6f;
     color: #1a3d3d;
 }

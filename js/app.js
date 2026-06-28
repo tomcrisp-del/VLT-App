@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.6.9";
+const APP_VERSION = "1.7.0";
 
 const properties = [
     {
@@ -1940,7 +1940,7 @@ async function showProperty(prop) {
 
     // Update back button text based on navigation source
     const backBtn = document.getElementById("detail-back-btn");
-    backBtn.innerHTML = cameFromAllTrails ? "&larr; All Trails" : "&larr; Trails";
+    backBtn.innerHTML = cameFromAllTrails ? "&larr; Map" : "&larr; Trails";
 
     const owner = prop.owner || "vlt";
     const org = orgInfo[owner];

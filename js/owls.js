@@ -2740,9 +2740,6 @@ function renderAdminIssues() {
     const sweepBtn = document.getElementById('admin-sweep-expired-btn');
     listEl.innerHTML = '';
 
-    // Always-visible callout: how many submissions need admin approval
-    renderAdminCallout(allAdminIssues);
-
     // Trail filter pill bar — same pattern as Tasks
     renderAdminTrailFilter(allAdminIssues);
 
@@ -2805,40 +2802,6 @@ function renderAdminIssues() {
 }
 
 // Admin-specific callout: surfaces what needs admin action
-function renderAdminCallout(pool) {
-    const el = document.getElementById('admin-issues-callout');
-    if (!el) return;
-    el.classList.remove('callout-urgent', 'callout-clear', 'callout-positive');
-    el.disabled = false;
-    el.onclick = null;
-
-    const pending = pool.filter(i => i.status === 'pending_approval').length;
-    const expired = pool.filter(isExpired).length;
-
-    if (pending > 0) {
-        el.innerHTML = `<span class="callout-text">⏳ ${pending} ${pending === 1 ? 'submission' : 'submissions'} awaiting your approval</span><span class="callout-action">Focus →</span>`;
-        el.classList.add('callout-urgent');
-        el.onclick = () => {
-            adminIssueFilter = 'pending_approval';
-            highlightAdminStatusPill();
-            renderAdminIssues();
-        };
-        return;
-    }
-    if (expired > 0) {
-        el.innerHTML = `<span class="callout-text">🧹 ${expired} expired ${expired === 1 ? 'issue' : 'issues'} ready to sweep</span><span class="callout-action">Review →</span>`;
-        el.classList.add('callout-clear');
-        el.onclick = () => {
-            adminIssueFilter = 'expired';
-            highlightAdminStatusPill();
-            renderAdminIssues();
-        };
-        return;
-    }
-    el.innerHTML = `<span class="callout-text">✅ No admin action needed right now.</span>`;
-    el.classList.add('callout-positive');
-    el.disabled = true;
-}
 
 // Trail filter pill bar — reuses Tasks-page styling for visual continuity
 function renderAdminTrailFilter(pool) {
@@ -2944,27 +2907,33 @@ function buildAdminIssueCard(issue) {
             ${note}${photo}</div>`;
     }
 
-    // Per-status admin actions. "Edit" is available on every issue.
+    // Per-status admin actions. "Show more info" (opens the issue + its map) and
+    // "Edit" are available on every issue.
+    const infoBtn = `<button class="admin-info-btn" data-id="${issue.id}">Show more info</button>`;
     const editBtn = `<button class="admin-edit-btn" data-id="${issue.id}">Edit</button>`;
     let actions;
     if (isPendingApproval) {
         actions = `
             <button class="admin-approve-btn" data-id="${issue.id}">Approve</button>
+            ${infoBtn}
             ${editBtn}
             <button class="admin-delete-btn"  data-id="${issue.id}">Reject &amp; Delete</button>`;
     } else if (isPendingReview) {
         actions = `
             <button class="admin-resolve-btn" data-id="${issue.id}">Mark Resolved</button>
+            ${infoBtn}
             ${editBtn}
             <button class="admin-reject-btn"  data-id="${issue.id}">Send Back</button>
             <button class="admin-delete-btn"  data-id="${issue.id}">Delete</button>`;
     } else if (!isResolved) {
         actions = `
             <button class="admin-resolve-btn" data-id="${issue.id}">Mark Resolved</button>
+            ${infoBtn}
             ${editBtn}
             <button class="admin-delete-btn"  data-id="${issue.id}">Delete</button>`;
     } else {
         actions = `
+            ${infoBtn}
             ${editBtn}
             <button class="admin-delete-btn" data-id="${issue.id}">Delete</button>`;
     }
@@ -2997,6 +2966,7 @@ function buildAdminIssueCard(issue) {
     card.querySelector('.admin-approve-btn')?.addEventListener('click', e => approveSubmission(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-resolve-btn')?.addEventListener('click', e => adminResolveIssue(e.currentTarget.dataset.id, e.currentTarget));
     card.querySelector('.admin-reject-btn')?.addEventListener('click',  e => rejectTask(e.currentTarget.dataset.id, e.currentTarget));
+    card.querySelector('.admin-info-btn')?.addEventListener('click',    () => openIssueDetail(issue, issue.id));
     card.querySelector('.admin-edit-btn')?.addEventListener('click',    e => openAdminEdit(e.currentTarget.dataset.id));
     card.querySelector('.admin-delete-btn').addEventListener('click',   e => adminDeleteIssue(e.currentTarget.dataset.id, e.currentTarget));
     return card;
