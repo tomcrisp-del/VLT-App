@@ -93,6 +93,11 @@ auth.onAuthStateChanged(async (user) => {
         // Keep the public login roster in sync with this user's current name.
         upsertRoster(user, currentOwl.displayName);
         updateOwlsView(true);
+        // If a trail map opened before auth resolved, finish its issue setup now
+        // (this is what fixes the intermittently-missing Hide/Show Issues toggle).
+        if (issueMapRef && _issueInfraProp && !_issueInfraReady) {
+            setupTrailIssueInfra(issueMapRef, _issueInfraProp);
+        }
         // Flush any reports queued while offline.
         setTimeout(syncOfflineReports, 2500);
     } else {
@@ -517,6 +522,12 @@ let issueMapRef        = null;
 let issueMapClickFn    = null;
 let pinDropBannerEl    = null;
 let issueReportBtnEl   = null;
+// The Hide/Show-Issues toggle + pins are only set up once the owl is signed in.
+// If the trail map opens BEFORE Firebase auth resolves, currentOwl is still null
+// and the toggle was silently skipped (the finicky "sometimes missing" bug). We
+// track the map/prop + a ready flag so auth resolution can finish the setup.
+let _issueInfraReady   = false;
+let _issueInfraProp    = null;
 
 const REPORT_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg><span class="issue-report-label">Report Trail Issue</span>`;
 const CANCEL_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg><span class="issue-report-label">Cancel Pin Drop</span>`;
@@ -573,9 +584,23 @@ window.onDetailMapReady = (map, prop) => {
     map.getContainer().appendChild(fab);
     issueReportBtnEl = fab;
 
-    // The rest of the in-map issue infrastructure (banner, layer group, toggle,
-    // loaded pins) only matters once you're signed in. Bail here for logged-out users.
-    if (!currentOwl) return;
+    // Remember this map/prop so a late auth resolution can finish the setup.
+    _issueInfraReady = false;
+    _issueInfraProp  = prop;
+
+    // The rest (banner, layer group, Hide/Show-Issues toggle, loaded pins) only
+    // matters once signed in. If currentOwl isn't ready yet, onAuthStateChanged
+    // calls setupTrailIssueInfra() the moment it resolves — so the toggle is no
+    // longer dropped on the floor when the map loads before auth.
+    if (currentOwl) setupTrailIssueInfra(map, prop);
+};
+
+// Adds the signed-in issue infrastructure to the detail map. Idempotent: the
+// _issueInfraReady flag guards against double-adding (e.g. auth firing twice).
+function setupTrailIssueInfra(map, prop) {
+    if (_issueInfraReady) return;
+    if (!currentOwl || !map || prop?.owner === 'mcht') return;
+    _issueInfraReady = true;
 
     // Floating banner appended directly inside the Leaflet container
     const banner = document.createElement('div');
@@ -616,7 +641,7 @@ window.onDetailMapReady = (map, prop) => {
 
     // Load & display existing open issues for this trail
     loadTrailIssues(map, prop);
-};
+}
 
 // Called by app.js when navigating away from the detail view
 window.onDetailMapLeaving = () => {
@@ -634,6 +659,8 @@ window.onDetailMapLeaving = () => {
     issueMapRef          = null;
     issueReportBtnEl     = null;
     pinDropBannerEl      = null;
+    _issueInfraReady     = false;
+    _issueInfraProp      = null;
 };
 
 // ── Pin-drop mode ─────────────────────────────────────────────
