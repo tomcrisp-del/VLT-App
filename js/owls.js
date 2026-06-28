@@ -1137,13 +1137,15 @@ async function addOfflineQueuedPins(map, prop) {
         const d = item?.data;
         if (!d || d.trailName !== prop.folder) continue;
         if (d.lat == null || d.lng == null) continue;
-        addQueuedIssueMarker(map, d, item.id);
+        addQueuedIssueMarker(map, item);
     }
 }
 
 // A dashed, pulsing pin for an offline-queued issue. Reuses the pending-approval
-// look; tapping explains it's saved offline and will post on reconnect.
-function addQueuedIssueMarker(map, d, id) {
+// look; tapping opens the editable issue directly so a mis-logged offline report
+// can be fixed right from the map (it isn't synced yet, so it edits the queue).
+function addQueuedIssueMarker(map, item) {
+    const d      = item.data || {};
     const color  = SEVERITY_COLORS[d.severity] || '#666';
     const letter = d.severity ? d.severity[0] : '?';
     const icon = L.divIcon({
@@ -1161,7 +1163,7 @@ function addQueuedIssueMarker(map, d, id) {
             placePinAndOpenForm(issueMapRef || map, d.lat, d.lng);
             return;
         }
-        showIssueToast('“' + (d.title || 'Issue') + '” is saved offline — it’ll post automatically when you’re back online.');
+        openOfflineEditItem(item);       // open the issue, ready to edit
     });
     issueMarkers.push(marker);
     return marker;
@@ -1523,6 +1525,7 @@ document.getElementById('issue-comment-input').addEventListener('keydown', (e) =
 let allTasks            = [];
 let offlineQueuedTasks  = [];       // reports still in the local offline queue
 let editingOfflineId    = null;     // IndexedDB id of the queued item being edited
+let editingOfflineItem  = null;     // the queued item object itself (id/data/photoBlob)
 let activeTrailFilter   = '__all';  // '__all' or a trail folder name
 let urgentOnly          = false;
 
@@ -1741,12 +1744,16 @@ function buildOfflineTaskCard(item) {
 }
 
 // Open the shared edit sheet for a queued offline report (saves to IndexedDB,
-// not Firestore — the item hasn't synced yet).
+// not Firestore — the item hasn't synced yet). Callable by id (Tasks page) or
+// with the item object directly (map pin, where the Tasks cache may be empty).
 function openOfflineEdit(queueId) {
-    const item = offlineQueuedTasks.find(i => i.id === queueId);
+    openOfflineEditItem(offlineQueuedTasks.find(i => i.id === queueId));
+}
+function openOfflineEditItem(item) {
     if (!item) return;
-    editingOfflineId = queueId;
-    adminEditId = null;
+    editingOfflineItem = item;
+    editingOfflineId   = item.id;
+    adminEditId        = null;
     populateEditPanel(item.data || {}, null);
 }
 
@@ -1760,7 +1767,7 @@ async function saveOfflineEdit() {
     if (!title)             { errorEl.textContent = 'Title can’t be empty.'; return; }
     if (!adminEditSeverity) { errorEl.textContent = 'Please choose a severity.'; return; }
 
-    const item = offlineQueuedTasks.find(i => i.id === editingOfflineId);
+    const item = editingOfflineItem;
     if (!item) { closeAdminEdit(); return; }
 
     errorEl.textContent = '';
@@ -1768,14 +1775,29 @@ async function saveOfflineEdit() {
     Object.assign(item.data, { title, category, severity: adminEditSeverity, description: desc || '' });
     try {
         await offlinePut(item);          // persist the edit back to the queue
+        // Keep the Tasks-page cache in sync if it holds a copy of this item.
+        const cached = offlineQueuedTasks.find(i => i.id === item.id);
+        if (cached && cached !== item) Object.assign(cached.data, item.data);
         closeAdminEdit();
-        renderTasks();
+        if (typeof renderTasks === 'function') renderTasks();
+        refreshOfflinePinsOnMap();       // update the dashed pin (severity/title)
         showIssueToast('Offline report updated ✓');
     } catch (e) {
         console.error('saveOfflineEdit error:', e);
         errorEl.textContent = 'Could not save — please try again.';
         saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
     }
+}
+
+// Redraw the trail map's issue pins (incl. the dashed offline ones) so an edit
+// made from a pin is reflected immediately. No-op if no trail map is showing.
+function refreshOfflinePinsOnMap() {
+    if (!issueMapRef) return;
+    const prop = window.getCurrentDetailProp ? window.getCurrentDetailProp() : null;
+    if (!prop) return;
+    issueMarkers.forEach(m => issueMapRef.removeLayer(m));
+    issueMarkers = [];
+    loadTrailIssues(issueMapRef, prop);
 }
 
 async function deleteOfflineQueued(queueId) {
@@ -3031,6 +3053,7 @@ function openAdminEdit(issueId) {
     const issue = allAdminIssues.find(i => i.id === issueId);
     if (!issue) return;
     editingOfflineId = null;
+    editingOfflineItem = null;
     populateEditPanel(issue, issueId);
 }
 
@@ -3040,6 +3063,7 @@ function openIssueEdit() {
     if (!issue || !issueId || !currentOwl) return;
     if (!(currentOwl.isAdmin || issue.reportedBy?.uid === currentOwl.uid)) return;
     editingOfflineId = null;
+    editingOfflineItem = null;
     populateEditPanel(issue, issueId);
 }
 
@@ -3047,6 +3071,7 @@ function closeAdminEdit() {
     document.getElementById('admin-edit-panel').classList.add('hidden');
     adminEditId = null;
     editingOfflineId = null;
+    editingOfflineItem = null;
 }
 
 async function saveAdminEdit() {
