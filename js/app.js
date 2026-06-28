@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.6.1";
 
 const properties = [
     {
@@ -2450,6 +2450,13 @@ function closeIdentify() {
     if (!triggers.length || !input || !modal) return;
 
     triggers.forEach((btn) => btn.addEventListener("click", () => {
+        // Photo ID needs the network (Claude vision API), so block it offline
+        // with a clear prompt instead of opening a flow that can't finish.
+        if (!navigator.onLine) {
+            if (typeof showIssueToast === "function") showIssueToast("Photo search does not work offline.");
+            else alert("Photo search does not work offline.");
+            return;
+        }
         closeIdentify();                 // start a fresh session
         modal.classList.remove("hidden");
         setState("collect");

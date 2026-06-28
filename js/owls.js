@@ -1573,10 +1573,21 @@ function updateTasksOfflineTitle() {
     if (!el) return;
     el.innerHTML = navigator.onLine
         ? 'Tasks'
-        : 'Tasks — <span class="tasks-offline-tag">offline</span>';
+        : 'Tasks • <span class="tasks-offline-tag">Offline</span>';
 }
 window.addEventListener('online',  updateTasksOfflineTitle);
 window.addEventListener('offline', updateTasksOfflineTitle);
+
+// Same offline indicator for the "Notes from the Trails" (sightings) title.
+function updateSightingsOfflineTitle() {
+    const el = document.getElementById('sightings-title');
+    if (!el) return;
+    el.innerHTML = navigator.onLine
+        ? 'Notes from the Trails'
+        : 'Notes from the Trails • <span class="tasks-offline-tag">Offline</span>';
+}
+window.addEventListener('online',  updateSightingsOfflineTitle);
+window.addEventListener('offline', updateSightingsOfflineTitle);
 
 function renderTasks() {
     const callout = document.getElementById('tasks-callout');
@@ -3913,6 +3924,7 @@ function formatSightingDate(ts) {
 function openSightings() {
     if (!currentOwl) { switchView('owls-view'); return; }   // OWLS-only
     switchView('sightings-view');
+    updateSightingsOfflineTitle();
     loadSightings();
 }
 function closeSightings() { switchView('activities-view'); }
