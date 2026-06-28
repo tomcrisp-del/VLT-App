@@ -635,10 +635,10 @@ header {
     gap: 6px;
 }
 
-/* Expanded: spread the three top controls (Sat/Topo · Back to Info · Hide
-   Issues) evenly across the full width, with the gap BETWEEN buttons equal to
-   the inset at the left/right edges — so the spacing matches the side controls
-   (Leaflet's zoom/locate sit ~10px from the edge). */
+/* Expanded: spread the three top controls evenly across the full width, with
+   the gap BETWEEN buttons equal to the inset at the left/right edges — so the
+   spacing matches the side controls (Leaflet's zoom/locate sit ~10px from the
+   edge). Order (via flex `order`): Back to Info · Sat/Topo · Hide Issues. */
 #detail-view.map-expanded #detail-map .leaflet-top.leaflet-left {
     left: 0;
     right: 0;
@@ -657,6 +657,10 @@ header {
     min-width: 0;
     margin: 0;
 }
+/* Reorder for the expanded view only (half-screen view keeps its layout). */
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-expand-btn          { order: 1; } /* Back to Info — left   */
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-layer-toggle        { order: 2; } /* Sat/Topo     — middle */
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-toggle-maintenance-btn { order: 3; } /* Hide Issues  — right  */
 
 /* Map legend */
 .map-legend {
