@@ -2808,7 +2808,8 @@ header {
 .issue-pin-marker.confirmed { background: #059669; }
 
 /* ── Issue Form Panel ── */
-#issue-form-panel {
+#issue-form-panel,
+#admin-adduser-panel {
     position: fixed;
     inset: 0;
     z-index: 2100;
@@ -2816,7 +2817,8 @@ header {
     flex-direction: column;
     justify-content: flex-end;
 }
-#issue-form-panel.hidden {
+#issue-form-panel.hidden,
+#admin-adduser-panel.hidden {
     display: none;
 }
 .issue-form-backdrop {
@@ -4605,6 +4607,42 @@ header {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+/* Members header: Back (left) · title (center) · + Add (right), evenly laid
+   out so the back button no longer overlaps the title. */
+.admin-panel-header-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+}
+.admin-panel-header-row .admin-panel-title {
+    flex: 1 1 auto;
+    text-align: center;
+}
+/* Matching pill buttons at each end — same footprint and spacing. */
+.admin-hdr-btn {
+    flex: 0 0 auto;
+    background: white;
+    border: 1px solid #e2e2da;
+    padding: 0.5rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    font-weight: 600;
+    color: #2c5f2d;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.admin-hdr-btn:active { background: #f0f0f0; }
+.admin-hdr-btn-add {
+    background: #2c5f2d;
+    border-color: #2c5f2d;
+    color: #fff;
+}
+.admin-hdr-btn-add:active { background: #24501f; }
 .admin-filter-bar {
     flex: 0 0 auto;
     display: flex;

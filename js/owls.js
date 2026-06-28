@@ -778,50 +778,6 @@ document.getElementById('issue-photo-remove').addEventListener('click', () => {
 });
 document.getElementById('issue-form-backdrop').addEventListener('click', closeIssueForm);
 
-// ── Connectivity helpers ──────────────────────────────────────
-// navigator.onLine lies — on iOS it routinely reports `true` on Wi-Fi that
-// has no real internet (and Firestore's offline write promise then never
-// resolves, freezing the form on "Saving…"). Probe a tiny cross-origin
-// endpoint to confirm the network is actually reachable before we commit to
-// the online path. gstatic.com is already a dependency (Firebase loads from it).
-async function isReallyOnline() {
-    if (!navigator.onLine) return false;
-    try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3500);
-        await fetch('https://www.gstatic.com/generate_204',
-            { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
-        clearTimeout(timer);
-        return true;
-    } catch (_) {
-        return false;
-    }
-}
-
-// Reject a promise if it hasn't settled in `ms` — a safety net so a stalled
-// upload/write can never hang the UI indefinitely.
-function withTimeout(promise, ms, label) {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error((label || 'operation') + ' timed out')), ms)),
-    ]);
-}
-
-// Submit-button label reflects whether we'll post live or log it for later.
-function issueSubmitLabel() { return navigator.onLine ? 'Submit Issue' : 'Log Issue'; }
-
-// Keep the submit button's label in sync with connectivity while the form is open.
-function refreshIssueSubmitLabel() {
-    const btn = document.getElementById('issue-submit-btn');
-    if (!btn || btn.disabled) return;
-    const panel = document.getElementById('issue-form-panel');
-    if (!panel || panel.classList.contains('hidden')) return;
-    btn.textContent = issueSubmitLabel();
-}
-window.addEventListener('online',  refreshIssueSubmitLabel);
-window.addEventListener('offline', refreshIssueSubmitLabel);
-
 // ── Submit to Firestore ───────────────────────────────────────
 async function submitIssue() {
     const errorEl   = document.getElementById('issue-form-error');
@@ -849,10 +805,6 @@ async function submitIssue() {
 
     const prop = window.getCurrentDetailProp ? window.getCurrentDetailProp() : null;
     const reportData = {
-        // Client-generated doc id makes the write idempotent: if the same report
-        // is ever written both live and again via the offline queue, both land on
-        // the SAME document — an overwrite, never a duplicate.
-        docId: db.collection('issues').doc().id,
         title, category, severity: selectedSeverity, description: desc,
         trailName: prop ? prop.folder : '',
         lat: pendingIssueLat, lng: pendingIssueLng,
@@ -3143,6 +3095,91 @@ async function removeMember(uid, btn) {
 document.getElementById('owl-admin-members-btn').addEventListener('click', openAdminMembersPanel);
 document.getElementById('admin-members-back-btn').addEventListener('click', () => {
     document.getElementById('admin-members-panel').classList.add('hidden');
+});
+
+// ── Admin: Add User (create a new owl on the go) ──────────────
+function openAddUserPanel() {
+    if (!currentOwl?.isAdmin) return;
+    document.getElementById('adduser-name').value  = '';
+    document.getElementById('adduser-email').value = '';
+    document.getElementById('adduser-pin').value   = '';
+    document.getElementById('adduser-error').textContent = '';
+    const btn = document.getElementById('adduser-submit-btn');
+    btn.disabled = false;
+    btn.textContent = 'Create Owl';
+    document.getElementById('admin-adduser-panel').classList.remove('hidden');
+    setTimeout(() => document.getElementById('adduser-name').focus(), 60);
+}
+function closeAddUserPanel() {
+    document.getElementById('admin-adduser-panel').classList.add('hidden');
+}
+
+async function createNewOwl() {
+    const errorEl = document.getElementById('adduser-error');
+    const btn     = document.getElementById('adduser-submit-btn');
+    const name    = document.getElementById('adduser-name').value.trim();
+    const email   = document.getElementById('adduser-email').value.trim().toLowerCase();
+    const pin     = document.getElementById('adduser-pin').value.trim();
+
+    if (!currentOwl?.isAdmin) { errorEl.textContent = 'Admins only.'; return; }
+    if (!name)                { errorEl.textContent = 'Please enter a name.'; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errorEl.textContent = 'Enter a valid email address.'; return; }
+    if (!/^\d{4}$/.test(pin)) { errorEl.textContent = 'PIN must be exactly 4 digits.'; return; }
+    if (!navigator.onLine)    { errorEl.textContent = 'You need to be online to create a new owl.'; return; }
+
+    btn.disabled    = true;
+    btn.textContent = 'Creating…';
+    errorEl.textContent = '';
+
+    // Create the auth account on a SECONDARY Firebase app so the admin's own
+    // session is never swapped out (createUserWithEmailAndPassword would
+    // otherwise sign the admin in as the new user). The new owl is briefly
+    // signed in on that secondary app, which lets us write their own /users and
+    // /roster docs under their uid — satisfying the usual uid == userId rules.
+    let secondary = null;
+    try {
+        try { secondary = firebase.app('secondary'); }
+        catch (_) { secondary = firebase.initializeApp(firebaseConfig, 'secondary'); }
+        await secondary.auth().setPersistence(firebase.auth.Auth.Persistence.NONE);
+
+        const cred   = await secondary.auth().createUserWithEmailAndPassword(email, pinToPassword(pin));
+        const newUid = cred.user.uid;
+        const sdb    = secondary.firestore();
+
+        await sdb.collection('users').doc(newUid).set({
+            email,
+            displayName: name,
+            isAdmin:     false,           // promote later via the member card if needed
+            joinedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        // Public roster entry powers the name picker on the login screen.
+        await sdb.collection('roster').doc(newUid).set({ displayName: name, email });
+        await secondary.auth().signOut();
+
+        closeAddUserPanel();
+        showIssueToast(`✓ ${name} added — they can sign in with their name + PIN.`);
+        openAdminMembersPanel();          // refresh the list so the new owl shows
+    } catch (e) {
+        console.error('createNewOwl error:', e);
+        let msg = 'Could not create the owl — please try again.';
+        if (e.code === 'auth/email-already-in-use') msg = 'That email already has an account.';
+        else if (e.code === 'auth/invalid-email')   msg = 'That email address looks invalid.';
+        else if (e.code === 'auth/weak-password')    msg = 'That PIN was rejected — try a different one.';
+        errorEl.textContent = msg;
+        btn.disabled    = false;
+        btn.textContent = 'Create Owl';
+    } finally {
+        // Release the secondary app so a later add starts clean.
+        if (secondary) { try { await secondary.delete(); } catch (_) { /* already gone */ } }
+    }
+}
+
+document.getElementById('admin-members-add-btn').addEventListener('click', openAddUserPanel);
+document.getElementById('adduser-cancel-btn').addEventListener('click', closeAddUserPanel);
+document.getElementById('admin-adduser-backdrop').addEventListener('click', closeAddUserPanel);
+document.getElementById('adduser-submit-btn').addEventListener('click', createNewOwl);
+document.getElementById('adduser-pin').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
 });
 
 // ============================================================
