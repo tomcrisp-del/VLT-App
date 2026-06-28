@@ -33,10 +33,10 @@ body {
     transition: width 0.3s ease;
 }
 
-/* Offline map state — only the cached default view is available, so zoom and
-   Expand are hidden; the Satellite/Topographic toggle still works. */
-.map-offline .leaflet-control-zoom,
-.map-offline .map-expand-btn { display: none !important; }
+/* Offline map state — only the cached default view is available, so zoom is
+   hidden and pan is disabled. Expand/Back-to-Info stays (we cache the expanded
+   extent too); the Satellite/Topographic toggle still works. */
+.map-offline .leaflet-control-zoom { display: none !important; }
 
 /* Online/Offline status pill — on every map (red/green light + word). */
 .map-net-status {
@@ -626,12 +626,29 @@ header {
 .map-toggle-maintenance-btn.issues-hidden {
     color: #aaa;
 }
-/* Lay out both topleft controls (Expand + Toggle) in a horizontal row */
+/* Lay out the topleft controls (Back to Info / Expand, Hide Issues, Sat-Topo)
+   in a horizontal row */
 #detail-map .leaflet-top.leaflet-left {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 6px;
+}
+
+/* Expanded: spread the top controls evenly across the full width. */
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left {
+    left: 0;
+    right: 0;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-expand-btn,
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-toggle-maintenance-btn,
+#detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-layer-toggle {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    margin: 0;
 }
 
 /* Map legend */

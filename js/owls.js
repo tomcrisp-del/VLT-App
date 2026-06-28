@@ -703,7 +703,7 @@ function openIssueForm() {
     document.getElementById('issue-form-error').textContent = '';
     const btn = document.getElementById('issue-submit-btn');
     btn.disabled    = false;
-    btn.textContent = 'Submit Issue';
+    btn.textContent = reportSubmitLabel();
     selectedSeverity = null;
     document.querySelectorAll('.issue-severity-btn').forEach(b => (b.className = 'issue-severity-btn'));
 
@@ -778,6 +778,50 @@ document.getElementById('issue-photo-remove').addEventListener('click', () => {
 });
 document.getElementById('issue-form-backdrop').addEventListener('click', closeIssueForm);
 
+// ── Connectivity helpers ──────────────────────────────────────
+// navigator.onLine lies — on iOS it routinely reports `true` on Wi-Fi that
+// has no real internet (and Firestore's offline write promise then never
+// resolves, freezing the form on "Saving…"). Probe a tiny cross-origin
+// endpoint to confirm the network is actually reachable before we commit to
+// the online path. gstatic.com is already a dependency (Firebase loads from it).
+async function isReallyOnline() {
+    if (!navigator.onLine) return false;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3500);
+        await fetch('https://www.gstatic.com/generate_204',
+            { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(timer);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Reject a promise if it hasn't settled in `ms` — a safety net so a stalled
+// upload/write can never hang the UI indefinitely.
+function withTimeout(promise, ms, label) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error((label || 'operation') + ' timed out')), ms)),
+    ]);
+}
+
+// Submit-button label reflects whether we'll post live or log it for later.
+function issueSubmitLabel() { return navigator.onLine ? 'Submit Issue' : 'Log Issue'; }
+
+// Keep the submit button's label in sync with connectivity while the form is open.
+function refreshIssueSubmitLabel() {
+    const btn = document.getElementById('issue-submit-btn');
+    if (!btn || btn.disabled) return;
+    const panel = document.getElementById('issue-form-panel');
+    if (!panel || panel.classList.contains('hidden')) return;
+    btn.textContent = issueSubmitLabel();
+}
+window.addEventListener('online',  refreshIssueSubmitLabel);
+window.addEventListener('offline', refreshIssueSubmitLabel);
+
 // ── Submit to Firestore ───────────────────────────────────────
 async function submitIssue() {
     const errorEl   = document.getElementById('issue-form-error');
@@ -805,6 +849,10 @@ async function submitIssue() {
 
     const prop = window.getCurrentDetailProp ? window.getCurrentDetailProp() : null;
     const reportData = {
+        // Client-generated doc id makes the write idempotent: if the same report
+        // is ever written both live and again via the offline queue, both land on
+        // the SAME document — an overwrite, never a duplicate.
+        docId: db.collection('issues').doc().id,
         title, category, severity: selectedSeverity, description: desc,
         trailName: prop ? prop.folder : '',
         lat: pendingIssueLat, lng: pendingIssueLng,
@@ -821,44 +869,50 @@ async function submitIssue() {
         catch (err) { console.warn('Photo compress failed:', err); photoBlob = null; }
     }
 
+    // Reliable connectivity check — iOS often reports navigator.onLine: true
+    // with no real connection, which would hang the Firestore write forever.
+    const online = await isReallyOnline();
+
     // Offline → save to the local queue and confirm; it syncs automatically later.
-    if (!navigator.onLine) {
+    if (!online) {
         await queueOfflineReport(reportData, photoBlob);
-        finishReportUI(prop, true);
+        finishReportUI(prop, { toastMsg: 'Saved offline — it’ll post automatically when you’re back online.' });
         return;
     }
 
-    // Online → upload the photo + write the issue. If the network drops mid-way,
-    // fall back to the offline queue instead of losing the report.
-    try {
-        let reportedPhotoUrl = null;
-        if (photoBlob) {
-            const progressEl = document.getElementById('issue-progress');
-            const fillEl     = document.getElementById('issue-progress-fill');
-            const labelEl    = document.getElementById('issue-progress-label');
+    // Online → upload the photo, then write the issue. Each step is time-limited
+    // so a mid-submit connection drop can never hang the form.
+    let reportedPhotoUrl = null;
+    if (photoBlob) {
+        const progressEl = document.getElementById('issue-progress');
+        const fillEl     = document.getElementById('issue-progress-fill');
+        const labelEl    = document.getElementById('issue-progress-label');
+        try {
             progressEl.classList.remove('hidden');
             fillEl.style.width  = '0%';
             labelEl.textContent = 'Uploading photo…';
-            reportedPhotoUrl = await uploadToCloudinary(photoBlob, pct => {
+            reportedPhotoUrl = await withTimeout(uploadToCloudinary(photoBlob, pct => {
                 fillEl.style.width = pct + '%';
                 labelEl.textContent = `Uploading… ${pct}%`;
-            });
+            }), 30000);
             fillEl.style.width = '100%';
             labelEl.textContent = 'Upload complete ✓';
-        }
-        await db.collection('issues').add(buildIssueDoc(reportData, reportedPhotoUrl));
-        finishReportUI(prop, false);
-    } catch (e) {
-        console.error('Issue submit error:', e);
-        if (!navigator.onLine) {
+        } catch (e) {
+            // No Firestore write happened yet — safe to queue offline (no dup).
+            console.warn('Photo upload failed, queueing offline:', e.message);
             await queueOfflineReport(reportData, photoBlob);
-            finishReportUI(prop, true);
-        } else {
-            document.getElementById('issue-progress')?.classList.add('hidden');
-            errorEl.textContent   = 'Failed to save — please try again.';
-            submitBtn.disabled    = false;
-            submitBtn.textContent = 'Submit Issue';
+            finishReportUI(prop, { toastMsg: 'Connection dropped — saved offline; it’ll post when you’re back online.' });
+            return;
         }
+    }
+    try {
+        await withTimeout(db.collection('issues').add(buildIssueDoc(reportData, reportedPhotoUrl)), 12000);
+        finishReportUI(prop, { reloadPins: true, toastMsg: currentOwl.isAdmin ? 'Issue posted to map ✓' : 'Issue submitted — admin will approve' });
+    } catch (e) {
+        // The write may still flush in the background — re-queuing would duplicate.
+        // Close optimistically; the pin appears once it lands.
+        console.warn('Issue write slow/failed:', e.message);
+        finishReportUI(prop, { reloadPins: true, toastMsg: 'Submitting — it’ll appear shortly.' });
     }
 }
 
@@ -881,15 +935,16 @@ function buildIssueDoc(d, reportedPhotoUrl) {
     };
 }
 
-// Shared form-finish UI for both online and offline submissions.
-function finishReportUI(prop, offline) {
+// Shared form-finish UI. opts = { reloadPins, toastMsg }.
+function finishReportUI(prop, opts) {
+    opts = opts || {};
     document.getElementById('issue-form-panel').classList.add('hidden');
     document.getElementById('issue-progress')?.classList.add('hidden');
     pendingIssueLat  = null;
     pendingIssueLng  = null;
     selectedSeverity = null;
     const submitBtn = document.getElementById('issue-submit-btn');
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Issue'; }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = reportSubmitLabel(); }
 
     if (tempIssueMarker && issueMapRef) {
         const confirmedIcon = L.divIcon({
@@ -902,16 +957,43 @@ function finishReportUI(prop, offline) {
         setTimeout(() => { if (m && r) r.removeLayer(m); if (tempIssueMarker === m) tempIssueMarker = null; }, 2200);
     }
 
-    if (!offline && issueMapRef && prop) {
+    if (opts.reloadPins && issueMapRef && prop) {
         issueMarkers.forEach(m => issueMapRef.removeLayer(m));
         issueMarkers = [];
         loadTrailIssues(issueMapRef, prop);
     }
 
-    if (offline) {
-        showIssueToast('Saved offline — it’ll post automatically when you’re back online.');
-    } else {
-        showIssueToast(currentOwl.isAdmin ? 'Issue posted to map ✓' : 'Issue submitted — admin will approve');
+    if (opts.toastMsg) showIssueToast(opts.toastMsg);
+}
+
+// Submit button reads "Log Issue" when offline (it'll be queued), else "Submit Issue".
+function reportSubmitLabel() { return navigator.onLine ? 'Submit Issue' : 'Log Issue'; }
+function refreshReportSubmitLabel() {
+    const btn = document.getElementById('issue-submit-btn');
+    if (btn && !btn.disabled) btn.textContent = reportSubmitLabel();
+}
+window.addEventListener('online',  refreshReportSubmitLabel);
+window.addEventListener('offline', refreshReportSubmitLabel);
+
+// Promise timeout + a real connectivity probe (navigator.onLine lies on iOS).
+function withTimeout(promise, ms) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    ]);
+}
+async function isReallyOnline() {
+    if (!navigator.onLine) return false;
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3500);
+        // google.com/generate_204 isn't handled by our service worker, so this
+        // hits the real network rather than a cache.
+        await fetch('https://www.google.com/generate_204', { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(t);
+        return true;
+    } catch {
+        return false;
     }
 }
 
@@ -955,17 +1037,18 @@ async function queueOfflineReport(reportData, photoBlob) {
 
 let _syncingReports = false;
 async function syncOfflineReports() {
-    if (_syncingReports || !navigator.onLine || !currentOwl) return;
+    if (_syncingReports || !currentOwl) return;
     let items;
     try { items = await offlineGetAll(); } catch { return; }
     if (!items || !items.length) return;
+    if (!(await isReallyOnline())) return;   // don't attempt while truly offline
     _syncingReports = true;
     let posted = 0;
     for (const item of items) {
         try {
             let photoUrl = null;
-            if (item.photoBlob) photoUrl = await uploadToCloudinary(item.photoBlob, () => {});
-            await db.collection('issues').add(buildIssueDoc(item.data, photoUrl));
+            if (item.photoBlob) photoUrl = await withTimeout(uploadToCloudinary(item.photoBlob, () => {}), 30000);
+            await withTimeout(db.collection('issues').add(buildIssueDoc(item.data, photoUrl)), 15000);
             await offlineDelete(item.id);
             posted++;
         } catch (e) {

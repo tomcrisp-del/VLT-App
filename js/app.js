@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.5.3";
+const APP_VERSION = "1.5.4";
 
 const properties = [
     {
@@ -2026,8 +2026,9 @@ async function showProperty(prop) {
         if (loader) loader.classList.add('hidden');
     });
 
-    // Compact Sat / Topo toggle (matches the other map buttons in size).
-    detailMap.addControl(makeLayerToggle(detailMap, detailSatellite, detailTopo));
+    // Compact Sat / Topo toggle — topleft so it shares the row with Back to
+    // Info + Hide Issues (they spread evenly across the top when expanded).
+    detailMap.addControl(makeLayerToggle(detailMap, detailSatellite, detailTopo, "topleft"));
     L.control.zoom({ position: "bottomright" }).addTo(detailMap);
     // "My Location" on a single-preserve map — no snap (already in one preserve),
     // just center on the user and drop the blue dot.
@@ -2770,7 +2771,7 @@ const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf
 // flowing) and, on first run, downloads each trail's centered satellite+topo
 // view so the maps work offline. A super-thin top bar shows progress; the app
 // stays fully usable meanwhile.
-const PRECACHE_DONE_KEY = "vltMapsPrecached_v1";
+const PRECACHE_DONE_KEY = "vltMapsPrecached_v2";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2814,15 +2815,22 @@ function viewTileUrls(b, zoom) {
     return out;
 }
 
-// Walk every trail in a hidden, detail-map-sized map to get each one's exact
-// default view, and collect the tile URLs for both layers.
+// Walk every trail to collect the tiles for its default view. The collapsed
+// map sets the (locked) zoom; we then cache the EXPANDED viewport extent at that
+// same zoom, which is a superset — so both the normal and expanded offline maps
+// render fully.
 async function computeAllTrailTileUrls() {
-    const div = document.createElement("div");
-    const W = window.innerWidth || 390;
-    const H = Math.max(180, Math.round(((window.innerHeight || 740) - 52) / 2));
-    div.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;height:${H}px;`;
-    document.body.appendChild(div);
-    const tmap = L.map(div, { zoomControl: false, attributionControl: false, maxZoom: 20 });
+    const mk = (w, h) => {
+        const div = document.createElement("div");
+        div.style.cssText = `position:fixed;left:-10000px;top:0;width:${w}px;height:${h}px;`;
+        document.body.appendChild(div);
+        return { div, map: L.map(div, { zoomControl: false, attributionControl: false, maxZoom: 20 }) };
+    };
+    const W  = window.innerWidth || 390;
+    const Hc = Math.max(180, Math.round(((window.innerHeight || 740) - 52) / 2)); // collapsed (~50%)
+    const He = Math.max(Hc,  Math.round((window.innerHeight || 740) - 52));        // expanded (~full)
+    const collapsed = mk(W, Hc);
+    const expanded  = mk(W, He);
     const urls = new Set();
     for (const prop of properties) {
         if (!prop.trail || prop.comingSoon) continue;
@@ -2831,12 +2839,15 @@ async function computeAllTrailTileUrls() {
             const layer = L.geoJSON(geo, { filter: (f) => f.geometry.type !== "Point" });
             const b = layer.getBounds();
             if (!b || !b.isValid()) continue;
-            tmap.fitBounds(b, { padding: [30, 30] });
-            viewTileUrls(tmap.getBounds(), tmap.getZoom()).forEach((u) => urls.add(u));
+            collapsed.map.fitBounds(b, { padding: [30, 30] });
+            const z = collapsed.map.getZoom();
+            // Expanded viewport bounds at the SAME zoom (the locked offline zoom).
+            expanded.map.setView(collapsed.map.getCenter(), z, { animate: false });
+            viewTileUrls(expanded.map.getBounds(), z).forEach((u) => urls.add(u));
         } catch (e) { /* skip a trail that won't load */ }
     }
-    tmap.remove();
-    div.remove();
+    collapsed.map.remove(); collapsed.div.remove();
+    expanded.map.remove();  expanded.div.remove();
     return Array.from(urls);
 }
 
@@ -2903,9 +2914,9 @@ window.addEventListener("online", () => setDetailMapOffline(detailMap, false));
 // Compact two-segment toggle replacing Leaflet's radio layer control. Active
 // side is filled (Sat = dark green, Topo = cream); the box matches the other
 // map buttons in size.
-function makeLayerToggle(map, satLayer, topoLayer) {
+function makeLayerToggle(map, satLayer, topoLayer, position) {
     const Ctl = L.Control.extend({
-        options: { position: "topright" },
+        options: { position: position || "topright" },
         onAdd: function () {
             const wrap = L.DomUtil.create("div", "leaflet-control map-layer-toggle");
             wrap.innerHTML =
