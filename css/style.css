@@ -3993,6 +3993,21 @@ header {
     0%, 100% { box-shadow: 0 0 7px 1px rgba(234, 179, 8, 0.40), 0 1px 5px rgba(0,0,0,0.08); }
     50%      { box-shadow: 0 0 16px 4px rgba(234, 179, 8, 0.70), 0 1px 5px rgba(0,0,0,0.08); }
 }
+/* Offline, not-yet-posted report — same glowing dashed look in RED. */
+.task-card.pending-offline-card {
+    border: 3px dashed #dc2626;
+    background: #fff7f7;
+    animation: pendingOfflineGlow 1.7s ease-in-out infinite;
+}
+@keyframes pendingOfflineGlow {
+    0%, 100% { box-shadow: 0 0 7px 1px rgba(220, 38, 38, 0.38), 0 1px 5px rgba(0,0,0,0.08); }
+    50%      { box-shadow: 0 0 16px 4px rgba(220, 38, 38, 0.65), 0 1px 5px rgba(0,0,0,0.08); }
+}
+.task-review-badge.task-review-offline {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #b91c1c;
+}
 .task-severity-bar {
     width: 5px;
     flex-shrink: 0;

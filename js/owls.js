@@ -1577,14 +1577,10 @@ async function loadTasks() {
     feedEl.innerHTML = '';
     emptyEl.classList.add('hidden');
     loadingEl.classList.remove('hidden');
-    // Hide the summary callout + trail filter while loading — otherwise the
-    // previous render's "all clear / nothing urgent" message stays on screen
-    // and misleads before the real tasks have arrived. renderTasks() reveals
-    // them again once the data is in.
-    const calloutEl = document.getElementById('tasks-callout');
+    // Hide the trail filter + "reports waiting" banner while loading so nothing
+    // stale flashes before the real data arrives. renderTasks() reveals them.
     const filterBarEl = document.getElementById('trail-filter-bar');
     const pendingStripEl = document.getElementById('tasks-pending-strip');
-    if (calloutEl)      calloutEl.style.display   = 'none';
     if (filterBarEl)    filterBarEl.style.display = 'none';
     if (pendingStripEl) pendingStripEl.classList.add('hidden');
 
@@ -1648,10 +1644,8 @@ window.addEventListener('online',  updateSightingsOfflineTitle);
 window.addEventListener('offline', updateSightingsOfflineTitle);
 
 function renderTasks() {
-    const callout = document.getElementById('tasks-callout');
-    const bar     = document.getElementById('trail-filter-bar');
-    if (callout) callout.style.display = '';
-    if (bar)     bar.style.display     = '';
+    const bar = document.getElementById('trail-filter-bar');
+    if (bar) bar.style.display = '';
     renderPendingSubmissionsStrip();
     return renderTrailGrouped();
 }
@@ -1694,9 +1688,8 @@ function renderTrailGrouped() {
         return (b.upvotes?.length || 0) - (a.upvotes?.length || 0);
     }));
 
-    // Slot-machine + callout reflect the FULL pool, before filters apply
+    // Trail filter pills reflect the FULL pool, before filters apply
     renderTrailSlotMachine(byTrail);
-    renderCallout(fullPool);
 
     // Apply filters to derive the feed pool
     const trailFilteredPool = (activeTrailFilter === '__all')
@@ -1779,7 +1772,7 @@ function renderPendingSubmissionsStrip() {
     strip.innerHTML =
         `<div class="pending-strip-row">` +
         `<span class="pending-strip-icon">⏳</span>` +
-        `<span class="pending-strip-text">${n} of your report${n === 1 ? '' : 's'} ${n === 1 ? 'is' : 'are'} awaiting approval</span>` +
+        `<span class="pending-strip-text">You have ${n} report${n === 1 ? '' : 's'} waiting</span>` +
         `</div>`;
 }
 function openOfflineEditItem(item) {
@@ -1831,45 +1824,6 @@ function refreshOfflinePinsOnMap() {
     issueMarkers.forEach(m => issueMapRef.removeLayer(m));
     issueMarkers = [];
     loadTrailIssues(issueMapRef, prop);
-}
-
-// Dynamic actionable callout — replaces the dumb stat strip with a
-// single recommendation that adapts to the current state.
-function renderCallout(fullPool) {
-    const el = document.getElementById('tasks-callout');
-    if (!el) return;
-    el.classList.remove('callout-urgent', 'callout-clear', 'callout-positive');
-    el.disabled = false;
-    el.onclick = null;
-
-    const total  = fullPool.length;
-    const urgent = fullPool.filter(t => t.severity === 'High').length;
-
-    if (total === 0) {
-        // Whole island is clear
-        el.innerHTML = `<span class="callout-text">🌲 All trails are looking good. Thanks Owls.</span>`;
-        el.classList.add('callout-positive');
-        el.disabled = true;
-        return;
-    }
-    if (urgent === 0) {
-        // Open tasks exist but none urgent
-        el.innerHTML = `<span class="callout-text">✅ Nothing urgent — pick a trail to browse.</span>`;
-        el.classList.add('callout-clear');
-        el.disabled = true;
-        return;
-    }
-    if (urgentOnly) {
-        // Filter is on — offer to clear it
-        el.innerHTML = `<span class="callout-text">🔥 Showing ${urgent} urgent ${urgent === 1 ? 'task' : 'tasks'}</span><span class="callout-action">Show all ✕</span>`;
-        el.classList.add('callout-urgent');
-        el.onclick = () => { urgentOnly = false; renderTasks(); };
-        return;
-    }
-    // Urgent tasks exist, filter not yet on — invite the user to focus
-    el.innerHTML = `<span class="callout-text">🔥 ${urgent} urgent ${urgent === 1 ? 'task needs' : 'tasks need'} attention</span><span class="callout-action">Focus →</span>`;
-    el.classList.add('callout-urgent');
-    el.onclick = () => { urgentOnly = true; renderTasks(); };
 }
 
 // Stable id-safe slug for a trail folder name (used as scroll anchor)
@@ -1958,9 +1912,9 @@ function timeAgo(ms) {
     return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Render this owl's own awaiting-approval reports at the top of the feed:
-// online pending_approval they submitted + offline-queued reports still on this
-// device. Each gets the glowing yellow dashed card. Returns how many rendered.
+// Render this owl's own waiting reports at the top of the feed, separated from
+// the approved tasks: online pending_approval (glowing yellow dashed) + offline-
+// queued reports not yet posted (glowing red dashed). Returns how many rendered.
 function renderMyPendingCards(feedEl) {
     const uid = currentOwl?.uid;
     if (!uid) return 0;
@@ -1998,8 +1952,8 @@ function buildTaskCard(task, opts = {}) {
     let actionHTML;
     if (isMyOwnPending) {
         actionHTML = offlineItem
-            ? `<span class="task-review-badge">⏳ Awaiting Approval · Saved offline</span>`
-            : `<span class="task-review-badge">⏳ Awaiting Approval</span>`;
+            ? `<span class="task-review-badge task-review-offline">📡 Saved offline · not posted yet</span>`
+            : `<span class="task-review-badge">⏳ Awaiting approval</span>`;
     } else {
         actionHTML = `
             <button class="task-info-btn"    data-id="${task.id}" data-action="info">Show more info</button>
@@ -2018,9 +1972,11 @@ function buildTaskCard(task, opts = {}) {
     const showTrail = !opts.hideTrailName;
 
     const card = document.createElement('div');
-    // Own pending submissions get a thick glowing yellow dashed outline so the
-    // reporter can spot their not-yet-approved report (only they see it).
-    card.className = isMyOwnPending ? 'task-card pending-approval-card' : 'task-card';
+    // Own reports get a thick glowing dashed outline: YELLOW once posted and
+    // awaiting approval, RED while still offline and not yet posted.
+    card.className = offlineItem ? 'task-card pending-offline-card'
+        : isMyOwnPending ? 'task-card pending-approval-card'
+        : 'task-card';
 
     card.innerHTML = `
         <div class="task-severity-bar" style="background:${color}"></div>
