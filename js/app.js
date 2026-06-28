@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.4.9";
+const APP_VERSION = "1.5.0";
 
 const properties = [
     {
@@ -2048,6 +2048,7 @@ async function showProperty(prop) {
         },
     });
     detailMap.addControl(new ExpandControl());
+    detailMap.addControl(makeStatusControl());
 
     setTimeout(() => detailMap.invalidateSize(), 50);
 
@@ -2176,6 +2177,7 @@ function initAllMap() {
         },
     });
     allMap.addControl(new AllLegendControl());
+    allMap.addControl(makeStatusControl());
 }
 
 async function showAllTrails() {
@@ -2892,24 +2894,46 @@ window.maybePrecacheMaps = maybePrecacheMaps;
 
 // ── Offline map lock ─────────────────────────────────────────
 // Offline we only have each trail's default cached view, so disable zoom, pan,
-// and Expand (which would request uncached tiles) and show a small hint. The
-// Satellite/Topographic toggle keeps working — both layers are cached.
+// and Expand (which would request uncached tiles). The Satellite/Topographic
+// toggle keeps working — both layers are cached. The Online/Offline pill (see
+// makeStatusControl) shows the connection state.
 function setDetailMapOffline(map, offline) {
     if (!map) return;
     ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
         .forEach((h) => { if (map[h]) offline ? map[h].disable() : map[h].enable(); });
-    const c = map.getContainer();
-    c.classList.toggle("map-offline", offline);
-    let hint = c.querySelector(".map-offline-hint");
-    if (offline && !hint) {
-        hint = document.createElement("div");
-        hint.className = "map-offline-hint";
-        hint.textContent = "Offline · saved map";
-        c.appendChild(hint);
-    } else if (!offline && hint) {
-        hint.remove();
-    }
+    map.getContainer().classList.toggle("map-offline", offline);
 }
 
 window.addEventListener("offline", () => setDetailMapOffline(detailMap, true));
 window.addEventListener("online", () => setDetailMapOffline(detailMap, false));
+
+// ── Online/Offline status pill (on every map) ────────────────
+// A tiny red/green light + "Online"/"Offline" word, added as a Leaflet control
+// to each map. A single global handler keeps every visible pill in sync.
+function makeStatusControl() {
+    const Ctl = L.Control.extend({
+        options: { position: "bottomleft" },
+        onAdd: function () {
+            const div = L.DomUtil.create("div", "leaflet-control map-net-status");
+            div.innerHTML = '<span class="map-net-dot"></span><span class="map-net-label"></span>';
+            L.DomEvent.disableClickPropagation(div);
+            applyNetStatus(div);
+            return div;
+        },
+    });
+    return new Ctl();
+}
+
+function applyNetStatus(div) {
+    const online = navigator.onLine;
+    div.classList.toggle("online", online);
+    div.classList.toggle("offline", !online);
+    const label = div.querySelector(".map-net-label");
+    if (label) label.textContent = online ? "Online" : "Offline";
+}
+
+function updateAllNetStatus() {
+    document.querySelectorAll(".map-net-status").forEach(applyNetStatus);
+}
+window.addEventListener("online", updateAllNetStatus);
+window.addEventListener("offline", updateAllNetStatus);

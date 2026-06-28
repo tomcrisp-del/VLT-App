@@ -3232,11 +3232,14 @@ async function loadFlock() {
             u._badges = BADGES.filter(b => b.earn(stats));
         });
 
-        // Random order — egalitarian, no permanent ranking
+        // Random order — egalitarian, no permanent ranking — then float the
+        // members who've set a profile photo to the top. Array.sort is stable,
+        // so the random order is preserved within each group.
         for (let i = users.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [users[i], users[j]] = [users[j], users[i]];
         }
+        users.sort((a, b) => (b.photoUrl ? 1 : 0) - (a.photoUrl ? 1 : 0));
 
         listEl.innerHTML = '';
         users.forEach(u => listEl.appendChild(buildOwlCard(u)));
