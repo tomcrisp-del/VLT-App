@@ -1557,6 +1557,7 @@ async function loadTasks() {
         // Timeout-guarded so a dead connection can't hang the spinner forever
         // (we still render any locally-queued offline reports below).
         const snap = await withTimeout(db.collection('issues').get(), 8000);
+        _tasksReachedServer = true;
         const isAdmin = currentOwl?.isAdmin;
         allTasks = [];
         snap.forEach(doc => {
@@ -1565,6 +1566,9 @@ async function loadTasks() {
             allTasks.push({ id: doc.id, ...d });
         });
     } catch (e) {
+        // Couldn't reach Firestore → treat as offline (covers the iOS case where
+        // navigator.onLine lies and reports "online" with no real connection).
+        _tasksReachedServer = false;
         console.error('loadTasks error:', e);
     }
 
@@ -1575,18 +1579,25 @@ async function loadTasks() {
     catch (_) { offlineQueuedTasks = []; }
 
     loadingEl.classList.add('hidden');
+    updateTasksOfflineTitle();   // refine now that we know if the fetch reached the server
     renderTasks();
 }
 
-// Tasks title shows a red "offline" tag when there's no connection.
+// Did the last Tasks fetch actually reach Firestore? Drives the offline tag
+// alongside navigator.onLine so it shows even when the OS wrongly says "online".
+let _tasksReachedServer = true;
+
+// Tasks title shows a red "Offline" tag when there's no real connection.
 function updateTasksOfflineTitle() {
     const el = document.getElementById('tasks-topbar-title');
     if (!el) return;
-    el.innerHTML = navigator.onLine
-        ? 'Tasks'
-        : 'Tasks • <span class="tasks-offline-tag">Offline</span>';
+    const offline = !navigator.onLine || !_tasksReachedServer;
+    el.innerHTML = offline
+        ? 'Tasks • <span class="tasks-offline-tag">Offline</span>'
+        : 'Tasks';
 }
-window.addEventListener('online',  updateTasksOfflineTitle);
+// Coming back online: assume reachable again (next load re-checks for real).
+window.addEventListener('online',  () => { _tasksReachedServer = true; updateTasksOfflineTitle(); });
 window.addEventListener('offline', updateTasksOfflineTitle);
 
 // Same offline indicator for the "Notes from the Trails" (sightings) title.

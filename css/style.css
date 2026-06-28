@@ -3389,8 +3389,7 @@ header {
    Grid with minmax ensures the centered title stays put even when the
    side columns are different widths. */
 .tasks-topbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    display: flex;
     align-items: center;
     gap: 8px;
     padding: 0.75rem 1rem;
@@ -3399,7 +3398,7 @@ header {
     flex-shrink: 0;
 }
 .tasks-back-link {
-    justify-self: start;
+    flex: 0 0 auto;
     background: none;
     border: none;
     color: #2c5f2d;
@@ -3415,6 +3414,10 @@ header {
 
 /* Page title — matches all other page headers (Wildlife, Volunteer, Events) */
 .tasks-topbar-title {
+    /* flex:1 + centered text → the title sits evenly between the back link and
+       the refresh button, regardless of their differing widths. */
+    flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
     font-size: 2.025rem;
     font-weight: 600;
@@ -3425,7 +3428,7 @@ header {
     white-space: nowrap;
 }
 .tasks-topbar-actions {
-    justify-self: end;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 6px;
