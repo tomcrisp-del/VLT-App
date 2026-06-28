@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.5.9";
+const APP_VERSION = "1.6.0";
 
 const properties = [
     {
@@ -1060,7 +1060,8 @@ function buildTrailCard(prop) {
 
     // ── Tap action ──
     if (prop.trail && !prop.comingSoon) {
-        card.addEventListener("click", () => showProperty(prop));
+        // Opened from the trail list → Back should return to the list.
+        card.addEventListener("click", () => { cameFromAllTrails = false; showProperty(prop); });
     }
     return card;
 }
@@ -2115,7 +2116,15 @@ document.getElementById("detail-back-btn").addEventListener("click", () => {
     }
     currentDetailProp = null;
 
-    switchView("list-view");
+    // Return to wherever the trail was opened from: the island map (if you
+    // tapped a trail on the All Trails map) or the trail list otherwise.
+    if (cameFromAllTrails) {
+        cameFromAllTrails = false;
+        switchView("island-map-view");
+        setTimeout(() => initializeAllTrailsMap(), 100);
+    } else {
+        switchView("list-view");
+    }
 });
 
 // ============================================================
@@ -2171,6 +2180,10 @@ function initAllMap() {
     });
     allMap.addControl(new AllLegendControl());
     allMap.addControl(makeStatusControl());
+
+    // Offline: only cached tiles exist, so lock zoom/pan here too (otherwise you
+    // can scroll the island into blank, uncached areas). Mirrors the detail map.
+    setDetailMapOffline(allMap, !navigator.onLine);
 }
 
 async function showAllTrails() {
@@ -2907,8 +2920,8 @@ function setDetailMapOffline(map, offline) {
     map.getContainer().classList.toggle("map-offline", offline);
 }
 
-window.addEventListener("offline", () => setDetailMapOffline(detailMap, true));
-window.addEventListener("online", () => setDetailMapOffline(detailMap, false));
+window.addEventListener("offline", () => { setDetailMapOffline(detailMap, true);  if (allMap) setDetailMapOffline(allMap, true); });
+window.addEventListener("online",  () => { setDetailMapOffline(detailMap, false); if (allMap) setDetailMapOffline(allMap, false); });
 
 // ── Sat / Topo layer toggle ──────────────────────────────────
 // Compact two-segment toggle replacing Leaflet's radio layer control. Active
