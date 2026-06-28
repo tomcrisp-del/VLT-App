@@ -1012,6 +1012,10 @@ async function syncOfflineReports() {
     if (posted > 0) {
         showIssueToast(posted === 1 ? 'Offline report posted ✓' : `${posted} offline reports posted ✓`);
         if (typeof refreshAdminBadge === 'function') refreshAdminBadge();
+        // If the Tasks page is open, refresh it so the now-synced reports move
+        // from the "Saved offline" section into the normal task list.
+        const tv = document.getElementById('tasks-view');
+        if (tv && !tv.classList.contains('hidden') && typeof loadTasks === 'function') loadTasks();
     }
 }
 
@@ -1516,9 +1520,11 @@ document.getElementById('issue-comment-input').addEventListener('keydown', (e) =
 });
 
 // ── Task Browser — slot-machine drives a real trail filter ─────
-let allTasks          = [];
-let activeTrailFilter = '__all';    // '__all' or a trail folder name
-let urgentOnly        = false;
+let allTasks            = [];
+let offlineQueuedTasks  = [];       // reports still in the local offline queue
+let editingOfflineId    = null;     // IndexedDB id of the queued item being edited
+let activeTrailFilter   = '__all';  // '__all' or a trail folder name
+let urgentOnly          = false;
 
 // Called by app.js every time the tasks view is shown
 window.onTasksViewShown = () => loadTasks();
@@ -1529,13 +1535,17 @@ async function loadTasks() {
     const loadingEl = document.getElementById('tasks-loading');
     if (!feedEl) return;
 
+    updateTasksOfflineTitle();
+
     feedEl.innerHTML = '';
     emptyEl.classList.add('hidden');
     loadingEl.classList.remove('hidden');
 
     try {
         // One fetch powers all three tabs; client-side filtering per tab.
-        const snap = await db.collection('issues').get();
+        // Timeout-guarded so a dead connection can't hang the spinner forever
+        // (we still render any locally-queued offline reports below).
+        const snap = await withTimeout(db.collection('issues').get(), 8000);
         const isAdmin = currentOwl?.isAdmin;
         allTasks = [];
         snap.forEach(doc => {
@@ -1547,9 +1557,26 @@ async function loadTasks() {
         console.error('loadTasks error:', e);
     }
 
+    // Reports logged offline live only in the local IndexedDB queue until they
+    // sync. Surface them on the Tasks page so they can be edited/removed if
+    // someone logged one incorrectly.
+    try { offlineQueuedTasks = (await offlineGetAll()) || []; }
+    catch (_) { offlineQueuedTasks = []; }
+
     loadingEl.classList.add('hidden');
     renderTasks();
 }
+
+// Tasks title shows a red "offline" tag when there's no connection.
+function updateTasksOfflineTitle() {
+    const el = document.getElementById('tasks-topbar-title');
+    if (!el) return;
+    el.innerHTML = navigator.onLine
+        ? 'Tasks'
+        : 'Tasks — <span class="tasks-offline-tag">offline</span>';
+}
+window.addEventListener('online',  updateTasksOfflineTitle);
+window.addEventListener('offline', updateTasksOfflineTitle);
 
 function renderTasks() {
     const callout = document.getElementById('tasks-callout');
@@ -1564,6 +1591,9 @@ function renderTrailGrouped() {
     const emptyEl = document.getElementById('tasks-empty');
     if (!feedEl) return;
     feedEl.innerHTML = '';
+
+    // Locally-queued offline reports first, so they're easy to find and fix.
+    const offlineCount = renderOfflineQueuedSection(feedEl);
 
     const uid = currentOwl?.uid;
 
@@ -1606,6 +1636,9 @@ function renderTrailGrouped() {
         : trailFilteredPool;
 
     if (feedPool.length === 0) {
+        // If there are offline cards above, don't show the "all clear" empty
+        // message — the page isn't actually empty.
+        if (offlineCount > 0) { emptyEl.classList.add('hidden'); return; }
         if (urgentOnly && trailFilteredPool.length > 0) {
             emptyEl.textContent = 'No urgent tasks here — nice and quiet.';
         } else if (activeTrailFilter !== '__all') {
@@ -1644,6 +1677,107 @@ function renderTrailGrouped() {
         // Just stack the cards.
         feedPool.forEach(t => feedEl.appendChild(buildTaskCard(t, { hideTrailName: true })));
     }
+}
+
+// ── Offline-queued reports on the Tasks page ─────────────────
+// Render a section of reports still sitting in the local offline queue, each
+// editable/removable so a mis-logged offline report can be fixed before it syncs.
+function renderOfflineQueuedSection(feedEl) {
+    if (!offlineQueuedTasks || !offlineQueuedTasks.length) return 0;
+    const header = document.createElement('div');
+    header.className = 'trail-group-header offline-group-header';
+    header.innerHTML =
+        `<span class="trail-group-name">📡 Saved offline — not synced</span>` +
+        `<span class="trail-group-count">${offlineQueuedTasks.length}</span>`;
+    feedEl.appendChild(header);
+    offlineQueuedTasks.forEach(item => feedEl.appendChild(buildOfflineTaskCard(item)));
+    return offlineQueuedTasks.length;
+}
+
+function buildOfflineTaskCard(item) {
+    const d        = item.data || {};
+    const colors   = { High: '#dc2626', Medium: '#d97706', Low: '#059669' };
+    const color    = colors[d.severity] || '#888';
+    const catLabel = CATEGORY_LABELS[d.category] || d.category || '';
+    const desc     = (d.description || '').trim();
+
+    const card = document.createElement('div');
+    card.className = 'task-card offline-queued-card';
+    card.innerHTML = `
+        <div class="task-severity-bar" style="background:${color}"></div>
+        <div class="task-card-body">
+            <div class="task-card-head">
+                <span class="task-offline-badge">📡 Saved offline · not synced yet</span>
+            </div>
+            <div class="task-card-head" style="margin-top:6px">
+                ${d.severity ? `<span class="task-sev-pill task-sev-${d.severity}">${d.severity}</span>` : ''}
+                ${catLabel ? `<span class="task-cat-badge">${escapeHtml(catLabel)}</span>` : ''}
+            </div>
+            <h3 class="task-card-title">${escapeHtml(d.title || '(no title)')}</h3>
+            ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
+            ${item.photoBlob ? `<p class="task-card-desc task-offline-photo-note">📷 Photo attached — uploads when you’re back online</p>` : ''}
+            <div class="task-card-meta-line">
+                ${d.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(d.trailName))}</span>` : ''}
+            </div>
+            <div class="task-action-row">
+                <button class="task-info-btn"           data-action="edit-offline">✏️ Edit</button>
+                <button class="task-offline-delete-btn" data-action="delete-offline">🗑 Delete</button>
+            </div>
+        </div>`;
+    card.querySelector('[data-action="edit-offline"]').addEventListener('click', () => openOfflineEdit(item.id));
+    card.querySelector('[data-action="delete-offline"]').addEventListener('click', () => deleteOfflineQueued(item.id));
+    return card;
+}
+
+// Open the shared edit sheet for a queued offline report (saves to IndexedDB,
+// not Firestore — the item hasn't synced yet).
+function openOfflineEdit(queueId) {
+    const item = offlineQueuedTasks.find(i => i.id === queueId);
+    if (!item) return;
+    editingOfflineId = queueId;
+    adminEditId = null;
+    populateEditPanel(item.data || {}, null);
+}
+
+async function saveOfflineEdit() {
+    const errorEl  = document.getElementById('admin-edit-error');
+    const saveBtn  = document.getElementById('admin-edit-save-btn');
+    const title    = document.getElementById('admin-edit-title').value.trim();
+    const category = document.getElementById('admin-edit-category').value;
+    const desc     = document.getElementById('admin-edit-desc').value.trim();
+
+    if (!title)             { errorEl.textContent = 'Title can’t be empty.'; return; }
+    if (!adminEditSeverity) { errorEl.textContent = 'Please choose a severity.'; return; }
+
+    const item = offlineQueuedTasks.find(i => i.id === editingOfflineId);
+    if (!item) { closeAdminEdit(); return; }
+
+    errorEl.textContent = '';
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    Object.assign(item.data, { title, category, severity: adminEditSeverity, description: desc || '' });
+    try {
+        await offlinePut(item);          // persist the edit back to the queue
+        closeAdminEdit();
+        renderTasks();
+        showIssueToast('Offline report updated ✓');
+    } catch (e) {
+        console.error('saveOfflineEdit error:', e);
+        errorEl.textContent = 'Could not save — please try again.';
+        saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
+    }
+}
+
+async function deleteOfflineQueued(queueId) {
+    const ok = await confirmAction(
+        'Delete this offline report?',
+        "It hasn't synced yet — deleting removes it permanently before it ever posts.",
+        'Yes, delete'
+    );
+    if (!ok) return;
+    try { await offlineDelete(queueId); } catch (_) { /* already gone */ }
+    offlineQueuedTasks = offlineQueuedTasks.filter(i => i.id !== queueId);
+    renderTasks();
+    showIssueToast('Offline report deleted.');
 }
 
 // Dynamic actionable callout — replaces the dumb stat strip with a
@@ -2872,6 +3006,9 @@ function populateEditPanel(issue, issueId) {
         if (b.dataset.severity === adminEditSeverity) b.classList.add('selected-' + adminEditSeverity);
     });
 
+    const heading = document.getElementById('admin-edit-heading');
+    if (heading) heading.textContent = editingOfflineId ? 'Edit Offline Report' : 'Edit Issue';
+
     const saveBtn = document.getElementById('admin-edit-save-btn');
     saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
     document.getElementById('admin-edit-panel').classList.remove('hidden');
@@ -2882,6 +3019,7 @@ function openAdminEdit(issueId) {
     if (!currentOwl?.isAdmin) return;
     const issue = allAdminIssues.find(i => i.id === issueId);
     if (!issue) return;
+    editingOfflineId = null;
     populateEditPanel(issue, issueId);
 }
 
@@ -2890,15 +3028,19 @@ function openIssueEdit() {
     const issue = currentDetailIssue, issueId = currentDetailIssueId;
     if (!issue || !issueId || !currentOwl) return;
     if (!(currentOwl.isAdmin || issue.reportedBy?.uid === currentOwl.uid)) return;
+    editingOfflineId = null;
     populateEditPanel(issue, issueId);
 }
 
 function closeAdminEdit() {
     document.getElementById('admin-edit-panel').classList.add('hidden');
     adminEditId = null;
+    editingOfflineId = null;
 }
 
 async function saveAdminEdit() {
+    // Editing a not-yet-synced offline report → save to the local queue instead.
+    if (editingOfflineId) return saveOfflineEdit();
     if (!currentOwl || !adminEditId) return;
     // Find the issue in whichever cache holds it, to check permission + sync.
     const cached = (currentDetailIssue && currentDetailIssueId === adminEditId) ? currentDetailIssue
