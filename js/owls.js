@@ -828,7 +828,7 @@ async function submitIssue() {
     // Offline → save to the local queue and confirm; it syncs automatically later.
     if (!online) {
         await queueOfflineReport(reportData, photoBlob);
-        finishReportUI(prop, { toastMsg: 'Saved offline — it’ll post automatically when you’re back online.' });
+        finishReportUI(prop, { reloadPins: true, toastMsg: 'Saved offline — it’ll post automatically when you’re back online.' });
         return;
     }
 
@@ -853,7 +853,7 @@ async function submitIssue() {
             // No Firestore write happened yet — safe to queue offline (no dup).
             console.warn('Photo upload failed, queueing offline:', e.message);
             await queueOfflineReport(reportData, photoBlob);
-            finishReportUI(prop, { toastMsg: 'Connection dropped — saved offline; it’ll post when you’re back online.' });
+            finishReportUI(prop, { reloadPins: true, toastMsg: 'Connection dropped — saved offline; it’ll post when you’re back online.' });
             return;
         }
     }
@@ -1092,10 +1092,11 @@ function isExpired(issue) {
 async function loadTrailIssues(map, prop) {
     try {
         // One simple query (single field) avoids composite index requirements.
-        // We then filter client-side for visibility rules.
-        const snap = await db.collection('issues')
+        // We then filter client-side for visibility rules. Timeout-guarded so a
+        // dead/iffy connection can't hang the map (and we still draw offline pins).
+        const snap = await withTimeout(db.collection('issues')
             .where('trailName', '==', prop.folder)
-            .get();
+            .get(), 8000);
         const uid     = currentOwl?.uid;
         const isAdmin = currentOwl?.isAdmin;
         snap.forEach(doc => {
@@ -1117,6 +1118,49 @@ async function loadTrailIssues(map, prop) {
     } catch (e) {
         console.warn('loadTrailIssues:', e.message);
     }
+    // Always overlay any locally-queued offline reports for this trail as dashed
+    // "pending" pins, so a volunteer can see where their offline-logged issue
+    // sits on the map even before it syncs.
+    await addOfflineQueuedPins(map, prop);
+}
+
+// Draw dashed pending pins for reports still sitting in the offline queue.
+async function addOfflineQueuedPins(map, prop) {
+    let items;
+    try { items = await offlineGetAll(); } catch (_) { return; }
+    if (!items || !items.length) return;
+    for (const item of items) {
+        const d = item?.data;
+        if (!d || d.trailName !== prop.folder) continue;
+        if (d.lat == null || d.lng == null) continue;
+        addQueuedIssueMarker(map, d, item.id);
+    }
+}
+
+// A dashed, pulsing pin for an offline-queued issue. Reuses the pending-approval
+// look; tapping explains it's saved offline and will post on reconnect.
+function addQueuedIssueMarker(map, d, id) {
+    const color  = SEVERITY_COLORS[d.severity] || '#666';
+    const letter = d.severity ? d.severity[0] : '?';
+    const icon = L.divIcon({
+        className: '',
+        html: `<div class="issue-map-pin pending-approval offline-queued" style="background:${color}">${letter}</div>`,
+        iconSize: [30, 30], iconAnchor: [15, 15],
+    });
+    const target = issueLayerGroup || map;
+    const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 1500 }).addTo(target);
+    marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        // Mid pin-drop → hand off the tap like a normal issue pin.
+        if (issuePinMode) {
+            if (issueMapClickFn && issueMapRef) { issueMapRef.off('click', issueMapClickFn); issueMapClickFn = null; }
+            placePinAndOpenForm(issueMapRef || map, d.lat, d.lng);
+            return;
+        }
+        showIssueToast('“' + (d.title || 'Issue') + '” is saved offline — it’ll post automatically when you’re back online.');
+    });
+    issueMarkers.push(marker);
+    return marker;
 }
 
 function addIssueMarker(map, issue, issueId) {
