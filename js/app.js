@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.5.1";
 
 const properties = [
     {
@@ -2026,12 +2026,8 @@ async function showProperty(prop) {
         if (loader) loader.classList.add('hidden');
     });
 
-    // Always-expanded base-layer switcher (Satellite / Topographic)
-    L.control.layers(
-        { "Satellite": detailSatellite, "Topographic": detailTopo },
-        null,
-        { position: "topright", collapsed: false }
-    ).addTo(detailMap);
+    // Compact Sat / Topo toggle (matches the other map buttons in size).
+    detailMap.addControl(makeLayerToggle(detailMap, detailSatellite, detailTopo));
     L.control.zoom({ position: "bottomright" }).addTo(detailMap);
     // "My Location" on a single-preserve map — no snap (already in one preserve),
     // just center on the user and drop the blue dot.
@@ -2151,12 +2147,8 @@ function initAllMap() {
         if (loader) loader.classList.add('hidden');
     });
 
-    // Always-expanded base-layer switcher (Satellite / Topographic)
-    L.control.layers(
-        { "Satellite": satelliteLayer, "Topographic": topoLayer },
-        null,
-        { position: "topright", collapsed: false }
-    ).addTo(allMap);
+    // Compact Sat / Topo toggle (matches the other map buttons in size).
+    allMap.addControl(makeLayerToggle(allMap, satelliteLayer, topoLayer));
 
     L.control.zoom({ position: "bottomright" }).addTo(allMap);
 
@@ -2906,6 +2898,40 @@ function setDetailMapOffline(map, offline) {
 
 window.addEventListener("offline", () => setDetailMapOffline(detailMap, true));
 window.addEventListener("online", () => setDetailMapOffline(detailMap, false));
+
+// ── Sat / Topo layer toggle ──────────────────────────────────
+// Compact two-segment toggle replacing Leaflet's radio layer control. Active
+// side is filled (Sat = dark green, Topo = cream); the box matches the other
+// map buttons in size.
+function makeLayerToggle(map, satLayer, topoLayer) {
+    const Ctl = L.Control.extend({
+        options: { position: "topright" },
+        onAdd: function () {
+            const wrap = L.DomUtil.create("div", "leaflet-control map-layer-toggle");
+            wrap.innerHTML =
+                '<button type="button" class="mlt-seg mlt-sat active">Sat</button>' +
+                '<button type="button" class="mlt-seg mlt-topo">Topo</button>';
+            const satBtn = wrap.querySelector(".mlt-sat");
+            const topoBtn = wrap.querySelector(".mlt-topo");
+            const select = (topo) => {
+                if (topo) {
+                    if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+                    if (!map.hasLayer(topoLayer)) topoLayer.addTo(map);
+                } else {
+                    if (map.hasLayer(topoLayer)) map.removeLayer(topoLayer);
+                    if (!map.hasLayer(satLayer)) satLayer.addTo(map);
+                }
+                satBtn.classList.toggle("active", !topo);
+                topoBtn.classList.toggle("active", topo);
+            };
+            L.DomEvent.disableClickPropagation(wrap);
+            satBtn.addEventListener("click", () => select(false));
+            topoBtn.addEventListener("click", () => select(true));
+            return wrap;
+        },
+    });
+    return new Ctl();
+}
 
 // ── Online/Offline status pill (on every map) ────────────────
 // A tiny red/green light + "Online"/"Offline" word, added as a Leaflet control

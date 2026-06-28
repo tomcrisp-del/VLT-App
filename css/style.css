@@ -356,11 +356,12 @@ header {
 .ts-stats-row {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    flex-wrap: wrap;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    white-space: nowrap;
     margin-bottom: 0.5rem;
     color: #555;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 700;
 }
 
@@ -550,19 +551,54 @@ header {
 }
 
 /* Expand/collapse button (Leaflet control) */
+/* Uniform map controls — Back to Info, Hide Issues, and the Sat/Topo toggle
+   all share the same box size so they line up as a set. */
+.map-expand-btn,
+.map-toggle-maintenance-btn,
+.map-layer-toggle {
+    box-sizing: border-box;
+    width: 8.4rem;
+    height: 2.05rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-family: "Chaparral Pro", Georgia, serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
 .map-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: rgba(255, 255, 255, 0.95);
     border: none;
-    padding: 0.4rem 0.85rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-family: "Chaparral Pro", Georgia, serif;
-    font-weight: 600;
     color: #2c5f2d;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     cursor: pointer;
     white-space: nowrap;
 }
+
+/* Sat / Topo toggle */
+.map-layer-toggle {
+    display: inline-flex;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.mlt-seg {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #8a8a80;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mlt-seg.mlt-topo { border-left: 1px solid #e2e2da; }
+.mlt-sat.active  { background: #2c5f2d; color: #fff; border-left-color: #2c5f2d; }
+.mlt-topo.active { background: #efe6cd; color: #2c5f2d; border-left-color: #efe6cd; }
 
 .map-expand-btn:active {
     background: #e8e8e4;
@@ -571,22 +607,18 @@ header {
 /* Hidden by default — only shown in expanded map */
 .map-toggle-maintenance-btn {
     display: none;
+    align-items: center;
+    justify-content: center;
     background: rgba(255, 255, 255, 0.95);
     border: none;
-    padding: 0.4rem 0.85rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-family: "Chaparral Pro", Georgia, serif;
-    font-weight: 600;
     color: #3d8b6f;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     cursor: pointer;
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
 }
 /* Visible only when the map is expanded */
 #detail-view.map-expanded .map-toggle-maintenance-btn {
-    display: inline-block;
+    display: inline-flex;
 }
 .map-toggle-maintenance-btn:active {
     background: #e8e8e4;
