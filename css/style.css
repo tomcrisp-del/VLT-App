@@ -635,11 +635,15 @@ header {
     gap: 6px;
 }
 
-/* Expanded: spread the top controls evenly across the full width. */
+/* Expanded: spread the three top controls (Sat/Topo · Back to Info · Hide
+   Issues) evenly across the full width, with the gap BETWEEN buttons equal to
+   the inset at the left/right edges — so the spacing matches the side controls
+   (Leaflet's zoom/locate sit ~10px from the edge). */
 #detail-view.map-expanded #detail-map .leaflet-top.leaflet-left {
     left: 0;
     right: 0;
-    padding: 0 8px;
+    padding: 0 10px;
+    gap: 10px;
     box-sizing: border-box;
 }
 #detail-view.map-expanded #detail-map .leaflet-top.leaflet-left .map-expand-btn,
