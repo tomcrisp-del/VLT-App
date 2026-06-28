@@ -1717,94 +1717,36 @@ function renderTrailGrouped() {
 }
 
 // ── "Your pending submissions" strip ─────────────────────────
-// A compact, PRIVATE row under the trail filter: reports this owl logged
-// (offline-queued OR online and not yet admin-approved) so they know it went
-// through. Only the reporter sees it — that's the point of admin review.
-let pendingStripExpanded = false;
-
-// All of *this owl's* submissions still awaiting approval, offline + online.
-function myPendingSubmissions() {
+// A compact, PRIVATE one-liner under the trail filter telling this owl how many
+// of *their* reports are still awaiting admin approval — offline-queued OR
+// online pending. Only the reporter sees it (that's the point of admin review).
+// It's purely reassurance; editing a mis-logged report is done from its map pin.
+function countMyPendingSubmissions() {
     const uid = currentOwl?.uid;
-    if (!uid) return [];
-    const out = [];
+    if (!uid) return 0;
+    let n = 0;
     // Offline queue lives on this device, so it's inherently this owl's.
     (offlineQueuedTasks || []).forEach(item => {
-        if (item?.data && (!item.data.reportedBy || item.data.reportedBy.uid === uid)) {
-            out.push({ kind: 'offline', id: item.id, item, data: item.data });
-        }
+        if (item?.data && (!item.data.reportedBy || item.data.reportedBy.uid === uid)) n++;
     });
-    // Online: pending_approval issues this owl reported (filtered so other owls
-    // never see them here).
+    // Online: pending_approval issues this owl reported (hidden from other owls).
     (allTasks || []).forEach(t => {
-        if (t.status === 'pending_approval' && t.reportedBy?.uid === uid) {
-            out.push({ kind: 'online', id: t.id, issue: t, data: t });
-        }
+        if (t.status === 'pending_approval' && t.reportedBy?.uid === uid) n++;
     });
-    return out;
+    return n;
 }
 
 function renderPendingSubmissionsStrip() {
     const strip = document.getElementById('tasks-pending-strip');
     if (!strip) return;
-    const items = myPendingSubmissions();
-    if (!items.length) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
-
-    const n = items.length;
-    const summary = `${n} of your report${n === 1 ? '' : 's'} ${n === 1 ? 'is' : 'are'} awaiting approval`;
-
-    const rowsHTML = pendingStripExpanded ? items.map((it, i) => {
-        const d = it.data || {};
-        const sev = d.severity ? `<span class="pending-row-sev sev-${d.severity}">${d.severity[0]}</span>` : '';
-        const meta = it.kind === 'offline' ? 'Saved offline' : 'Pending approval';
-        const del = it.kind === 'offline'
-            ? `<button class="pending-row-del" data-i="${i}" aria-label="Delete">✕</button>` : '';
-        return `<div class="pending-row" data-i="${i}">
-            ${sev}
-            <span class="pending-row-title">${escapeHtml(d.title || '(no title)')}</span>
-            <span class="pending-row-meta">${meta}</span>
-            ${del}
-        </div>`;
-    }).join('') : '';
-
+    const n = countMyPendingSubmissions();
+    if (!n) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
     strip.classList.remove('hidden');
-    strip.innerHTML = `
-        <button class="pending-strip-toggle" type="button" aria-expanded="${pendingStripExpanded}">
-            <span class="pending-strip-icon">⏳</span>
-            <span class="pending-strip-text">${summary}</span>
-            <span class="pending-strip-chevron">${pendingStripExpanded ? '▴' : '▾'}</span>
-        </button>
-        ${pendingStripExpanded ? `<div class="pending-strip-body">
-            <div class="pending-strip-hint">Only you can see these until an admin approves them.</div>
-            ${rowsHTML}
-        </div>` : ''}`;
-
-    strip.querySelector('.pending-strip-toggle').addEventListener('click', () => {
-        pendingStripExpanded = !pendingStripExpanded;
-        renderPendingSubmissionsStrip();
-    });
-    strip.querySelectorAll('.pending-row').forEach(row => {
-        row.addEventListener('click', (e) => {
-            if (e.target.closest('.pending-row-del')) return;   // handled below
-            const it = items[+row.dataset.i];
-            if (!it) return;
-            if (it.kind === 'offline') openOfflineEditItem(it.item);
-            else openIssueDetail(it.issue, it.id);
-        });
-    });
-    strip.querySelectorAll('.pending-row-del').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const it = items[+btn.dataset.i];
-            if (it && it.kind === 'offline') deleteOfflineQueued(it.id);
-        });
-    });
-}
-
-// Open the shared edit sheet for a queued offline report (saves to IndexedDB,
-// not Firestore — the item hasn't synced yet). Callable by id (Tasks page) or
-// with the item object directly (map pin, where the Tasks cache may be empty).
-function openOfflineEdit(queueId) {
-    openOfflineEditItem(offlineQueuedTasks.find(i => i.id === queueId));
+    strip.innerHTML =
+        `<div class="pending-strip-row">` +
+        `<span class="pending-strip-icon">⏳</span>` +
+        `<span class="pending-strip-text">${n} of your report${n === 1 ? '' : 's'} ${n === 1 ? 'is' : 'are'} awaiting approval</span>` +
+        `</div>`;
 }
 function openOfflineEditItem(item) {
     if (!item) return;
@@ -1855,19 +1797,6 @@ function refreshOfflinePinsOnMap() {
     issueMarkers.forEach(m => issueMapRef.removeLayer(m));
     issueMarkers = [];
     loadTrailIssues(issueMapRef, prop);
-}
-
-async function deleteOfflineQueued(queueId) {
-    const ok = await confirmAction(
-        'Delete this offline report?',
-        "It hasn't synced yet — deleting removes it permanently before it ever posts.",
-        'Yes, delete'
-    );
-    if (!ok) return;
-    try { await offlineDelete(queueId); } catch (_) { /* already gone */ }
-    offlineQueuedTasks = offlineQueuedTasks.filter(i => i.id !== queueId);
-    renderTasks();
-    showIssueToast('Offline report deleted.');
 }
 
 // Dynamic actionable callout — replaces the dumb stat strip with a
