@@ -1662,6 +1662,10 @@ function renderTrailGrouped() {
     if (!feedEl) return;
     feedEl.innerHTML = '';
 
+    // This owl's own not-yet-approved reports (online pending + offline queued)
+    // sit at the top with a glowing yellow dashed outline — only they see them.
+    const pendingCount = renderMyPendingCards(feedEl);
+
     const uid = currentOwl?.uid;
 
     // Open work pool. Only admin-approved issues ('open'/'claimed') appear here.
@@ -1703,6 +1707,9 @@ function renderTrailGrouped() {
         : trailFilteredPool;
 
     if (feedPool.length === 0) {
+        // Pending cards above aren't "open tasks" — don't claim it's all clear
+        // if the owl has their own submissions showing.
+        if (pendingCount > 0) { emptyEl.classList.add('hidden'); return; }
         if (urgentOnly && trailFilteredPool.length > 0) {
             emptyEl.textContent = 'No urgent tasks here — nice and quiet.';
         } else if (activeTrailFilter !== '__all') {
@@ -1951,17 +1958,48 @@ function timeAgo(ms) {
     return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Render this owl's own awaiting-approval reports at the top of the feed:
+// online pending_approval they submitted + offline-queued reports still on this
+// device. Each gets the glowing yellow dashed card. Returns how many rendered.
+function renderMyPendingCards(feedEl) {
+    const uid = currentOwl?.uid;
+    if (!uid) return 0;
+    const inFilter = (trail) => activeTrailFilter === '__all' || trail === activeTrailFilter;
+    let count = 0;
+    (allTasks || []).forEach(t => {
+        if (t.status === 'pending_approval' && t.reportedBy?.uid === uid && inFilter(t.trailName)) {
+            feedEl.appendChild(buildTaskCard(t));
+            count++;
+        }
+    });
+    (offlineQueuedTasks || []).forEach(item => {
+        const d = item?.data;
+        if (!d) return;
+        if (d.reportedBy && d.reportedBy.uid !== uid) return;
+        if (!inFilter(d.trailName)) return;
+        feedEl.appendChild(buildTaskCard(null, { offlineItem: item }));
+        count++;
+    });
+    return count;
+}
+
 function buildTaskCard(task, opts = {}) {
+    // opts.offlineItem → render an offline-queued report (its data is the task).
+    const offlineItem = opts.offlineItem || null;
+    if (offlineItem) task = offlineItem.data || {};
+
     const colors = { High: '#dc2626', Medium: '#d97706', Low: '#059669' };
     const color  = colors[task.severity] || '#888';
     const uid    = currentOwl?.uid;
 
-    const isPendingApproval = task.status === 'pending_approval';
-    const isMyOwnPending    = isPendingApproval && task.reportedBy?.uid === uid;
+    const isPendingApproval = task.status === 'pending_approval' || !!offlineItem;
+    const isMyOwnPending    = isPendingApproval && (!!offlineItem || task.reportedBy?.uid === uid);
 
     let actionHTML;
     if (isMyOwnPending) {
-        actionHTML = `<span class="task-review-badge">⏳ Awaiting Approval</span>`;
+        actionHTML = offlineItem
+            ? `<span class="task-review-badge">⏳ Awaiting Approval · Saved offline</span>`
+            : `<span class="task-review-badge">⏳ Awaiting Approval</span>`;
     } else {
         actionHTML = `
             <button class="task-info-btn"    data-id="${task.id}" data-action="info">Show more info</button>
@@ -1969,7 +2007,7 @@ function buildTaskCard(task, opts = {}) {
     }
 
     const upvotes    = task.upvotes?.length || 0;
-    const dateStr    = formatIssueDate(task.reportedAt);
+    const dateStr    = task.reportedAt ? formatIssueDate(task.reportedAt) : '';
     const catLabel   = CATEGORY_LABELS[task.category] || task.category || '';
     const sevLabel   = task.severity || '';
     const reportedBy = task.reportedBy?.displayName || '';
@@ -1980,7 +2018,9 @@ function buildTaskCard(task, opts = {}) {
     const showTrail = !opts.hideTrailName;
 
     const card = document.createElement('div');
-    card.className = 'task-card';
+    // Own pending submissions get a thick glowing yellow dashed outline so the
+    // reporter can spot their not-yet-approved report (only they see it).
+    card.className = isMyOwnPending ? 'task-card pending-approval-card' : 'task-card';
 
     card.innerHTML = `
         <div class="task-severity-bar" style="background:${color}"></div>
@@ -1990,20 +2030,30 @@ function buildTaskCard(task, opts = {}) {
                 <span class="task-cat-badge">${escapeHtml(catLabel)}</span>
                 ${upvotes > 0 ? `<span class="task-card-upvotes">👍 ${upvotes}</span>` : ''}
             </div>
-            <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
+            <h3 class="task-card-title">${escapeHtml(task.title || '(no title)')}</h3>
             ${desc ? `<p class="task-card-desc">${escapeHtml(desc)}</p>` : ''}
             ${task.reportedPhotoUrl ? `<div class="img-loading"><img class="task-card-photo" src="${task.reportedPhotoUrl}" alt="Reported photo" loading="lazy" onload="this.parentElement.classList.add('loaded')" onerror="this.parentElement.classList.add('loaded')"></div>` : ''}
             <div class="task-card-meta-line">
                 ${showTrail && task.trailName ? `<span class="task-card-trail">${escapeHtml(trailLabel(task.trailName))}</span>` : ''}
                 ${reportedBy ? `<span class="task-card-by">Reported by ${escapeHtml(reportedBy)}</span>` : ''}
-                <span class="task-card-date">${dateStr}</span>
+                ${dateStr ? `<span class="task-card-date">${dateStr}</span>` : ''}
             </div>
             <div class="task-action-row">${actionHTML}</div>
         </div>`;
 
-    card.querySelector('[data-action="resolve"]')?.addEventListener('click', () => openCompletionSheet(task));
-    card.querySelector('[data-action="info"]')?.addEventListener('click',    () => openIssueDetail(task, task.id));
-    card.querySelector('.task-card-photo')?.addEventListener('click',        () => openIssueDetail(task, task.id));
+    if (offlineItem) {
+        // Offline report → tap anywhere to edit it (it isn't synced yet).
+        card.classList.add('task-card-tappable');
+        card.addEventListener('click', () => openOfflineEditItem(offlineItem));
+    } else if (isMyOwnPending) {
+        // Online pending → tap to view/edit the submission.
+        card.classList.add('task-card-tappable');
+        card.addEventListener('click', () => openIssueDetail(task, task.id));
+    } else {
+        card.querySelector('[data-action="resolve"]')?.addEventListener('click', () => openCompletionSheet(task));
+        card.querySelector('[data-action="info"]')?.addEventListener('click',    () => openIssueDetail(task, task.id));
+        card.querySelector('.task-card-photo')?.addEventListener('click',        () => openIssueDetail(task, task.id));
+    }
     return card;
 }
 

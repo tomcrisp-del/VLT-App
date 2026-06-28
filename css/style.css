@@ -3977,6 +3977,22 @@ header {
     overflow: hidden;
     margin-bottom: 10px;
 }
+.task-card-tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.task-card-tappable:active { transform: scale(0.992); }
+
+/* Own awaiting-approval report — thick glowing yellow dashed outline (mirrors
+   the offline pin's dashed pending look, in a different colour). Only the
+   reporter sees these cards. (box-shadow paints outside overflow:hidden, so the
+   glow shows without clipping the rounded corners.) */
+.task-card.pending-approval-card {
+    border: 3px dashed #eab308;
+    background: #fffdf4;
+    animation: pendingCardGlow 1.7s ease-in-out infinite;
+}
+@keyframes pendingCardGlow {
+    0%, 100% { box-shadow: 0 0 7px 1px rgba(234, 179, 8, 0.40), 0 1px 5px rgba(0,0,0,0.08); }
+    50%      { box-shadow: 0 0 16px 4px rgba(234, 179, 8, 0.70), 0 1px 5px rgba(0,0,0,0.08); }
+}
 .task-severity-bar {
     width: 5px;
     flex-shrink: 0;
