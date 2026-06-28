@@ -483,7 +483,10 @@ header {
 }
 
 #detail-map {
-    flex: 1 1 0;
+    /* Map takes ~40% of the screen so the info pane (photo, title, pills, and a
+       few sentences of description) has room and the text isn't cut off. The
+       Expand button still blows it up to full screen. */
+    flex: 0 0 40vh;
     min-height: 120px;
     transition: flex 0.3s ease;
 }

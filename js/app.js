@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.1";
+const APP_VERSION = "1.7.2";
 
 const properties = [
     {
@@ -466,17 +466,12 @@ const FEATURE_META = {
     "steep":             { label: "Steep",                  cat: "terrain",      icon: IC.steep    },
     "uneven":            { label: "Uneven Footing",         cat: "terrain",      icon: IC.uneven   },
     "wet":               { label: "Wet Ground",             cat: "terrain",      icon: IC.wet      },
-    "shaded":            { label: "Shaded",                 cat: "terrain",      icon: IC.tree     },
     "not-shaded":        { label: "Sun Exposed",            cat: "terrain",      icon: IC.sun      },
     "scenic-views":      { label: "Scenic Views",           cat: "highlight",    icon: IC.mountain },
     "shoreline":         { label: "Shoreline",              cat: "highlight",    icon: IC.waves    },
-    "beach":             { label: "Beach Access",           cat: "highlight",    icon: IC.beach    },
+    "beach":             { label: "Beach",                  cat: "highlight",    icon: IC.beach    },
     "waterfall":         { label: "Waterfall",              cat: "highlight",    icon: IC.waterfall},
-    "historic":          { label: "Historical Sites",       cat: "highlight",    icon: IC.historic },
     "quarry":            { label: "Quarry",                 cat: "highlight",    icon: IC.quarry   },
-    "tidal":             { label: "Tidal",                  cat: "highlight",    icon: IC.tidal    },
-    "benches":           { label: "Benches",                cat: "amenity",      icon: IC.bench    },
-    "swimming":          { label: "Swimming",               cat: "amenity",      icon: IC.swim     },
     "no-dogs":           { label: "No Dogs",                cat: "restriction",  icon: IC.nodogs   },
     "boat-access-only":  { label: "Boat Access Only",       cat: "restriction",  icon: IC.boat     },
 };
