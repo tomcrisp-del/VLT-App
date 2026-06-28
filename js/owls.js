@@ -1543,6 +1543,14 @@ async function loadTasks() {
     feedEl.innerHTML = '';
     emptyEl.classList.add('hidden');
     loadingEl.classList.remove('hidden');
+    // Hide the summary callout + trail filter while loading — otherwise the
+    // previous render's "all clear / nothing urgent" message stays on screen
+    // and misleads before the real tasks have arrived. renderTasks() reveals
+    // them again once the data is in.
+    const calloutEl = document.getElementById('tasks-callout');
+    const filterBarEl = document.getElementById('trail-filter-bar');
+    if (calloutEl)   calloutEl.style.display   = 'none';
+    if (filterBarEl) filterBarEl.style.display = 'none';
 
     try {
         // One fetch powers all three tabs; client-side filtering per tab.
