@@ -86,6 +86,8 @@ auth.onAuthStateChanged(async (user) => {
         // Keep the public login roster in sync with this user's current name.
         upsertRoster(user, currentOwl.displayName);
         updateOwlsView(true);
+        // Flush any reports queued while offline.
+        setTimeout(syncOfflineReports, 2500);
     } else {
         currentOwl = null;
         updateOwlsView(false);
@@ -801,103 +803,186 @@ async function submitIssue() {
     submitBtn.textContent = 'Saving…';
     errorEl.textContent   = '';
 
-    // Optional Cloudinary upload — runs before the Firestore write so the
-    // resulting photo URL is part of the issue document from the start.
-    let reportedPhotoUrl = null;
+    const prop = window.getCurrentDetailProp ? window.getCurrentDetailProp() : null;
+    const reportData = {
+        title, category, severity: selectedSeverity, description: desc,
+        trailName: prop ? prop.folder : '',
+        lat: pendingIssueLat, lng: pendingIssueLng,
+        status: currentOwl.isAdmin ? 'open' : 'pending_approval',
+        reportedBy: { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
+        // Medium/Low expire after 6 months; High never expires.
+        expiresMonths: (selectedSeverity === 'Medium' || selectedSeverity === 'Low') ? 6 : 0,
+    };
+
+    // Compress the photo up front — works offline too.
+    let photoBlob = null;
     if (issuePhotoFile) {
-        const progressEl = document.getElementById('issue-progress');
-        const fillEl     = document.getElementById('issue-progress-fill');
-        const labelEl    = document.getElementById('issue-progress-label');
-        try {
+        try { photoBlob = await compressImage(issuePhotoFile); }
+        catch (err) { console.warn('Photo compress failed:', err); photoBlob = null; }
+    }
+
+    // Offline → save to the local queue and confirm; it syncs automatically later.
+    if (!navigator.onLine) {
+        await queueOfflineReport(reportData, photoBlob);
+        finishReportUI(prop, true);
+        return;
+    }
+
+    // Online → upload the photo + write the issue. If the network drops mid-way,
+    // fall back to the offline queue instead of losing the report.
+    try {
+        let reportedPhotoUrl = null;
+        if (photoBlob) {
+            const progressEl = document.getElementById('issue-progress');
+            const fillEl     = document.getElementById('issue-progress-fill');
+            const labelEl    = document.getElementById('issue-progress-label');
             progressEl.classList.remove('hidden');
             fillEl.style.width  = '0%';
-            labelEl.textContent = 'Compressing photo…';
-            const compressed = await compressImage(issuePhotoFile);
             labelEl.textContent = 'Uploading photo…';
-            reportedPhotoUrl = await uploadToCloudinary(compressed, pct => {
+            reportedPhotoUrl = await uploadToCloudinary(photoBlob, pct => {
                 fillEl.style.width = pct + '%';
                 labelEl.textContent = `Uploading… ${pct}%`;
             });
             fillEl.style.width = '100%';
             labelEl.textContent = 'Upload complete ✓';
-        } catch (err) {
-            console.error('Issue photo upload failed:', err);
-            errorEl.textContent = 'Photo upload failed — try again or remove the photo.';
-            progressEl.classList.add('hidden');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Issue';
-            return;
         }
-    }
-
-    try {
-        // High severity never expires; Medium/Low expire after 6 months
-        let expiresAt = null;
-        if (selectedSeverity === 'Medium' || selectedSeverity === 'Low') {
-            const d = new Date();
-            d.setMonth(d.getMonth() + 6);
-            expiresAt = firebase.firestore.Timestamp.fromDate(d);
-        }
-
-        const prop = window.getCurrentDetailProp ? window.getCurrentDetailProp() : null;
-
-        await db.collection('issues').add({
-            title,
-            category,
-            severity:     selectedSeverity,
-            description:  desc,
-            trailName:    prop ? prop.folder : '',
-            lat:          pendingIssueLat,
-            lng:          pendingIssueLng,
-            reportedPhotoUrl,
-            // Admin submissions go straight to 'open' (self-approve);
-            // everyone else's go to the moderation queue.
-            status:       currentOwl.isAdmin ? 'open' : 'pending_approval',
-            reportedBy:   { uid: currentOwl.uid, displayName: currentOwl.displayName || currentOwl.email },
-            reportedAt:   firebase.firestore.FieldValue.serverTimestamp(),
-            upvotes:      [],
-            downvotes:    [],
-            claimedBy:    null,
-            completedAt:  null,
-            photos:       [],
-            expiresAt,
-        });
-
-        // Close form, swap pin to confirmed, fade out
-        document.getElementById('issue-form-panel').classList.add('hidden');
-        pendingIssueLat  = null;
-        pendingIssueLng  = null;
-        selectedSeverity = null;
-
-        if (tempIssueMarker && issueMapRef) {
-            const confirmedIcon = L.divIcon({
-                className: '',
-                html: `<div class="issue-pin-marker confirmed">✓</div>`,
-                iconSize: [28, 28], iconAnchor: [14, 14],
-            });
-            tempIssueMarker.setIcon(confirmedIcon);
-            const m = tempIssueMarker;
-            const r = issueMapRef;
-            setTimeout(() => { if (m && r) r.removeLayer(m); if (tempIssueMarker === m) tempIssueMarker = null; }, 2200);
-        }
-
-        // Reload pins so the reporter sees their own pending pin appear immediately
-        if (issueMapRef && prop) {
-            issueMarkers.forEach(m => issueMapRef.removeLayer(m));
-            issueMarkers = [];
-            loadTrailIssues(issueMapRef, prop);
-        }
-        showIssueToast(currentOwl.isAdmin
-            ? 'Issue posted to map ✓'
-            : 'Issue submitted — admin will approve');
-
+        await db.collection('issues').add(buildIssueDoc(reportData, reportedPhotoUrl));
+        finishReportUI(prop, false);
     } catch (e) {
         console.error('Issue submit error:', e);
-        errorEl.textContent   = 'Failed to save — please try again.';
-        submitBtn.disabled    = false;
-        submitBtn.textContent = 'Submit Issue';
+        if (!navigator.onLine) {
+            await queueOfflineReport(reportData, photoBlob);
+            finishReportUI(prop, true);
+        } else {
+            document.getElementById('issue-progress')?.classList.add('hidden');
+            errorEl.textContent   = 'Failed to save — please try again.';
+            submitBtn.disabled    = false;
+            submitBtn.textContent = 'Submit Issue';
+        }
     }
 }
+
+// Build the Firestore issue document from queued/in-memory report data.
+function buildIssueDoc(d, reportedPhotoUrl) {
+    let expiresAt = null;
+    if (d.expiresMonths) {
+        const dt = new Date();
+        dt.setMonth(dt.getMonth() + d.expiresMonths);
+        expiresAt = firebase.firestore.Timestamp.fromDate(dt);
+    }
+    return {
+        title: d.title, category: d.category, severity: d.severity, description: d.description,
+        trailName: d.trailName, lat: d.lat, lng: d.lng,
+        reportedPhotoUrl: reportedPhotoUrl || null,
+        status: d.status,
+        reportedBy: d.reportedBy,
+        reportedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        upvotes: [], downvotes: [], claimedBy: null, completedAt: null, photos: [], expiresAt,
+    };
+}
+
+// Shared form-finish UI for both online and offline submissions.
+function finishReportUI(prop, offline) {
+    document.getElementById('issue-form-panel').classList.add('hidden');
+    document.getElementById('issue-progress')?.classList.add('hidden');
+    pendingIssueLat  = null;
+    pendingIssueLng  = null;
+    selectedSeverity = null;
+    const submitBtn = document.getElementById('issue-submit-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Issue'; }
+
+    if (tempIssueMarker && issueMapRef) {
+        const confirmedIcon = L.divIcon({
+            className: '',
+            html: `<div class="issue-pin-marker confirmed">✓</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14],
+        });
+        tempIssueMarker.setIcon(confirmedIcon);
+        const m = tempIssueMarker, r = issueMapRef;
+        setTimeout(() => { if (m && r) r.removeLayer(m); if (tempIssueMarker === m) tempIssueMarker = null; }, 2200);
+    }
+
+    if (!offline && issueMapRef && prop) {
+        issueMarkers.forEach(m => issueMapRef.removeLayer(m));
+        issueMarkers = [];
+        loadTrailIssues(issueMapRef, prop);
+    }
+
+    if (offline) {
+        showIssueToast('Saved offline — it’ll post automatically when you’re back online.');
+    } else {
+        showIssueToast(currentOwl.isAdmin ? 'Issue posted to map ✓' : 'Issue submitted — admin will approve');
+    }
+}
+
+// ── Offline report queue (IndexedDB) + auto-sync ─────────────
+const OFFLINE_DB = 'vlt-offline';
+const OFFLINE_STORE = 'reports';
+
+function offlineDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(OFFLINE_DB, 1);
+        req.onupgradeneeded = () => {
+            if (!req.result.objectStoreNames.contains(OFFLINE_STORE)) {
+                req.result.createObjectStore(OFFLINE_STORE, { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+    });
+}
+function idbOp(mode, fn) {
+    return offlineDB().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(OFFLINE_STORE, mode);
+        const store = tx.objectStore(OFFLINE_STORE);
+        const out = fn(store);
+        tx.oncomplete = () => resolve(out && out.result !== undefined ? out.result : out);
+        tx.onerror    = () => reject(tx.error);
+    }));
+}
+const offlineGetAll = () => idbOp('readonly',  s => s.getAll());
+const offlinePut    = (item) => idbOp('readwrite', s => s.put(item));
+const offlineDelete = (id) => idbOp('readwrite', s => s.delete(id));
+
+async function queueOfflineReport(reportData, photoBlob) {
+    const item = {
+        id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+        data: reportData,
+        photoBlob: photoBlob || null,
+    };
+    try { await offlinePut(item); } catch (e) { console.warn('queue offline report failed:', e); }
+}
+
+let _syncingReports = false;
+async function syncOfflineReports() {
+    if (_syncingReports || !navigator.onLine || !currentOwl) return;
+    let items;
+    try { items = await offlineGetAll(); } catch { return; }
+    if (!items || !items.length) return;
+    _syncingReports = true;
+    let posted = 0;
+    for (const item of items) {
+        try {
+            let photoUrl = null;
+            if (item.photoBlob) photoUrl = await uploadToCloudinary(item.photoBlob, () => {});
+            await db.collection('issues').add(buildIssueDoc(item.data, photoUrl));
+            await offlineDelete(item.id);
+            posted++;
+        } catch (e) {
+            console.warn('sync report failed (will retry later):', e.message);
+            break; // likely offline again — stop and retry next trigger
+        }
+    }
+    _syncingReports = false;
+    if (posted > 0) {
+        showIssueToast(posted === 1 ? 'Offline report posted ✓' : `${posted} offline reports posted ✓`);
+        if (typeof refreshAdminBadge === 'function') refreshAdminBadge();
+    }
+}
+
+// Auto-sync triggers: when the connection returns, and on a timer while open.
+window.addEventListener('online', () => setTimeout(syncOfflineReports, 1500));
+setInterval(() => { syncOfflineReports(); }, 15 * 60 * 1000); // every 15 min while open
 
 // ── Issue map pins & detail — Task 4 ─────────────────────────
 let issueMarkers         = [];    // Leaflet markers for existing issues
