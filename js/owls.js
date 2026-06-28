@@ -276,6 +276,33 @@ function stopAdminBadgePolling() {
     setAppIconBadge(0);
 }
 
+// ── iOS home-screen badge permission ─────────────────────────
+// iOS only paints the app-icon badge for an INSTALLED (standalone) web app that
+// has been granted notification permission — so setAppBadge() was silently doing
+// nothing. iOS also requires the request to come from a user gesture, so we ask
+// once on the admin's first tap, then refresh so the badge shows. (No push is
+// set up, so the badge updates whenever the app is opened and persists between
+// opens — it just won't change while the app is fully closed.)
+let _badgePermAsked = false;
+function maybeRequestBadgePermission() {
+    if (_badgePermAsked) return;
+    if (!currentOwl?.isAdmin) return;
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'default') {
+        _badgePermAsked = true;
+        if (Notification.permission === 'granted') refreshAdminBadge();
+        return;
+    }
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+        || window.navigator.standalone === true;
+    if (!standalone) return;   // badge only works in the installed app — don't nag in Safari
+    _badgePermAsked = true;
+    Notification.requestPermission()
+        .then(p => { if (p === 'granted') refreshAdminBadge(); })
+        .catch(() => {});
+}
+document.addEventListener('click', maybeRequestBadgePermission, true);
+
 // Re-check the moment the app is brought back to the foreground.
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && currentOwl && currentOwl.isAdmin) refreshAdminBadge();
