@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.7";
+const APP_VERSION = "1.7.10";
 
 const properties = [
     {
@@ -682,6 +682,13 @@ function propPath(prop, file) {
     return "Properties/" + prop.folder + "/" + file;
 }
 
+// Small pre-generated 512×384 WebP thumbnail of the main photo, used on the
+// list-view cards (the full-res original is only needed for the detail banner,
+// online). This is what gets cached for offline use — see computeAllTrailAssetUrls.
+function cardThumbPath(prop) {
+    return "Properties/" + prop.folder + "/card-thumb.webp";
+}
+
 // Load and parse a KML file (accepts full relative path)
 async function loadKml(path) {
     const res = await fetch(path);
@@ -1023,9 +1030,13 @@ function buildTrailCard(prop) {
         const img = document.createElement("img");
         img.className = "trail-card-photo";
         img.alt = "";
-        img.src = "Properties/" + prop.folder + "/" + prop.photo;
+        img.src = cardThumbPath(prop);
         const cardFilter = CARD_FILTERS[prop.name.replace(/\n/g, " ")];
         img.onload = () => { img.style.display = "block"; if (cardFilter) img.style.filter = cardFilter; };
+        // If the small thumbnail is ever missing, fall back to the full-res photo.
+        img.onerror = () => {
+            if (img.src.indexOf("card-thumb.webp") !== -1) img.src = propPath(prop, prop.photo);
+        };
         card.appendChild(img);
     }
 
@@ -1221,11 +1232,29 @@ function initCarousel(mainPhotoSrc, propertyFolder) {
     const track = document.getElementById("carousel-track");
     const dotsContainer = document.getElementById("carousel-dots");
     const carousel = document.getElementById("detail-photo-carousel");
+    const info = document.getElementById("detail-info");
+
+    // Hide/show the photo banner. When hidden, flag the info pane so the back
+    // button and title don't collide (the button floats where the banner was).
+    const hideBanner = (hidden) => {
+        carousel.classList.toggle("no-photo", hidden);
+        if (info) info.classList.toggle("no-banner", hidden);
+    };
 
     track.innerHTML = "";
     dotsContainer.innerHTML = "";
     carouselIndex = 0;
     carouselDeltaX = 0;
+
+    // Offline: the photo banner (main image + gallery) isn't guaranteed to be
+    // cached — gallery photos are intentionally left out of the offline bundle —
+    // so hide the banner entirely rather than risk broken images. The trail's
+    // photo still shows on the list card (that main image is cached).
+    if (!navigator.onLine) {
+        hideBanner(true);
+        carouselCount = 0;
+        return;
+    }
 
     // Build image list: main photo first, then gallery photos
     const images = [];
@@ -1240,10 +1269,11 @@ function initCarousel(mainPhotoSrc, propertyFolder) {
     }
 
     if (images.length === 0) {
-        carousel.classList.add("no-photo");
+        hideBanner(true);
+        carouselCount = 0;
         return;
     }
-    carousel.classList.remove("no-photo");
+    hideBanner(false);
 
     carouselCount = images.length;
 
@@ -2793,9 +2823,13 @@ const PRECACHE_DONE_KEY = "vltMapsPrecached_v3";
 // evicted the button reactivates on its own. See refreshOfflineMapsStatus.
 const OFFLINE_MAPS_TARGET_KEY = "vltMapsTileTarget";
 const OFFLINE_CONTENT_TARGET_KEY = "vltMapsContentTarget";
+// When we last force-repaired the caches — used to throttle the on-reconnect
+// repair so a flapping connection doesn't re-download every few seconds.
+const OFFLINE_LAST_REPAIR_KEY = "vltMapsLastRepair";
+const REPAIR_COOLDOWN_MS = 60 * 60 * 1000; // repair at most once an hour
 // Cache names — must match the ones in sw.js.
 const TILE_CACHE_NAME = "vlt-tiles-v2";
-const CONTENT_CACHE_NAME = "vlt-content-v1";
+const CONTENT_CACHE_NAME = "vlt-content-v2";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2902,25 +2936,28 @@ async function _computeAllTrailTileUrls() {
     return Array.from(urls);
 }
 
-// Every same-origin file a trail page loads at runtime — description text,
-// photos (card + detail + gallery), and the trail/connector/boundary/parking
+// Every same-origin file a trail page needs offline — description text, the
+// main photo (shown on the list card), and the trail/connector/boundary/parking
 // map layers. The trail's stats (title, difficulty, length, duration, features)
 // live in the app bundle itself, which the service worker already caches, so
-// they need no separate download. Shared-parking files belong to another
-// property's folder and are captured when that property is walked here.
+// they need no separate download. Gallery photos are deliberately excluded to
+// keep the download small (they're ~30 MB of full-res images); offline, the
+// detail-page photo banner is hidden instead of showing broken gallery images
+// (see initCarousel). Shared-parking files belong to another property's folder
+// and are captured when that property is walked here.
 function computeAllTrailAssetUrls() {
     const urls = new Set();
     for (const prop of properties) {
         const add = (file) => { if (file) urls.add(propPath(prop, file)); };
-        add(prop.photo);
+        // Cache the small card thumbnail, not the full-res photo — the list
+        // cards use it and the detail banner is hidden offline anyway.
+        if (prop.photo) urls.add(cardThumbPath(prop));
         add(prop.description);
         add(prop.trail);
         (prop.connectors || []).forEach(add);
         if (typeof prop.boundary === "string") add(prop.boundary);
         else if (prop.boundary && Array.isArray(prop.boundary.parcels)) prop.boundary.parcels.forEach(add);
         (prop.parking || []).forEach(add);
-        for (const g of (galleryPhotos[prop.folder] || []))
-            urls.add("Properties/" + prop.folder + "/Photo Gallery/" + g);
     }
     return Array.from(urls);
 }
@@ -3010,33 +3047,55 @@ async function offlineBundleComplete() {
     return tileCount >= tileTarget && contentCount >= contentTarget;
 }
 
-// Runs on every app open (and on reconnect): verifies both the map tiles and the
-// trail content are cached, and downloads anything missing. Fast no-op when
-// everything is already saved.
-async function maybePrecacheMaps() {
+// Persist a completed download's results (targets + done flag) if nothing
+// failed. Returns whether the bundle came down clean.
+function persistBundleResult(res) {
+    const clean = res.tiles.failed === 0 && res.content.failed === 0
+        && !res.tiles.quotaError && !res.content.quotaError;
+    if (clean) {
+        localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.tiles.ok));
+        localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(res.content.ok));
+        localStorage.setItem(PRECACHE_DONE_KEY, "1");
+        refreshOfflineMapsStatus();
+    }
+    return clean;
+}
+
+// Best-effort detection of a metered/cellular connection so we don't burn
+// mobile data on a full repair. Unknown (e.g. iOS Safari, which has no Network
+// Information API) is treated as not-cellular so the repair still runs.
+function onCellularConnection() {
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c) return false;
+    if (c.saveData) return true;
+    if (typeof c.type === "string") return c.type === "cellular";
+    if (typeof c.effectiveType === "string") return /(^|\b)(slow-2g|2g)$/.test(c.effectiveType);
+    return false;
+}
+
+// Verify both caches and download anything missing. Fast no-op when everything
+// is already saved. force=true re-downloads and overwrites everything, which
+// repairs corrupted/partial entries (e.g. a tile a flaky connection stored as
+// an error). Guarded so overlapping triggers don't run it twice at once.
+async function maybePrecacheMaps(opts = {}) {
+    const force = !!opts.force;
     if (mapPrecacheStarted) return;
     if (!("serviceWorker" in navigator) || !navigator.onLine) return;
     if (typeof L === "undefined" || typeof properties === "undefined") return;
     try { await navigator.serviceWorker.ready; } catch (_) { return; }
-    // Already fully saved → nothing to do this session.
-    if (await offlineBundleComplete()) return;
+    // Nothing to do only when NOT forcing and everything is already present.
+    if (!force && await offlineBundleComplete()) return;
     mapPrecacheStarted = true;
     try {
         precacheBarSet(2);
-        const res = await downloadOfflineBundle({ force: false, onBar: precacheBarSet });
+        const res = await downloadOfflineBundle({ force, onBar: precacheBarSet });
         precacheBarSet(100);
         setTimeout(precacheBarHide, 700);
-        const clean = res.tiles.failed === 0 && res.content.failed === 0
-            && !res.tiles.quotaError && !res.content.quotaError;
-        // Only remember "done" if everything made it. If any failed (flaky
-        // connection) or storage filled up, leave the flag unset and reset the
-        // guard so the next `online` event retries the missing pieces.
-        if (clean) {
-            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.tiles.ok));
-            localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(res.content.ok));
-            localStorage.setItem(PRECACHE_DONE_KEY, "1");
-            refreshOfflineMapsStatus();
+        if (persistBundleResult(res)) {
+            if (force) localStorage.setItem(OFFLINE_LAST_REPAIR_KEY, String(Date.now()));
         } else {
+            // Something failed (flaky connection / storage full) → leave the flag
+            // unset and reset the guard so the next reconnect retries.
             mapPrecacheStarted = false;
             console.warn("offline precache incomplete:", res);
         }
@@ -3047,16 +3106,28 @@ async function maybePrecacheMaps() {
     }
 }
 
+// Decide what to do when the app opens or comes back online: if a repair is due
+// (we're on a non-metered connection and it's been over an hour), force a full
+// re-download to heal any corrupted caches; otherwise just fill any gaps. This
+// is what keeps caches self-repairing whenever a phone reconnects to Wi-Fi.
+async function syncOfflineCaches() {
+    if (!("serviceWorker" in navigator) || !navigator.onLine) return;
+    const last = parseInt(localStorage.getItem(OFFLINE_LAST_REPAIR_KEY) || "0", 10);
+    const repairDue = !onCellularConnection() && (Date.now() - last >= REPAIR_COOLDOWN_MS);
+    await maybePrecacheMaps({ force: repairDue });
+}
+
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("sw.js")
-            .then(() => { setTimeout(maybePrecacheMaps, 3000); }) // let the app settle first
+            .then(() => { setTimeout(syncOfflineCaches, 3000); }) // let the app settle first
             .catch((e) => console.warn("SW register failed:", e));
     });
-    // If they were offline at launch, kick it off when they reconnect.
-    window.addEventListener("online", () => { setTimeout(maybePrecacheMaps, 1500); });
+    // Repair/refresh whenever the phone regains a connection.
+    window.addEventListener("online", () => { setTimeout(syncOfflineCaches, 1500); });
 }
 window.maybePrecacheMaps = maybePrecacheMaps;
+window.syncOfflineCaches = syncOfflineCaches;
 
 // ── "Download All Offline Maps" button (Resources page) ──────
 // A user-driven, force re-download of every trail's tiles. Unlike the automatic
@@ -3141,6 +3212,7 @@ async function downloadAllOfflineMaps() {
             localStorage.setItem(PRECACHE_DONE_KEY, "1");
             localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(tiles.ok));
             localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(content.ok));
+            localStorage.setItem(OFFLINE_LAST_REPAIR_KEY, String(Date.now())); // manual download counts as a repair
             setOfflineMapsStatus(`✓ Maps & trail info saved (${tiles.ok + content.ok} items). Everything works with no signal.`, "ok");
             fullyDone = true;
         }

@@ -284,6 +284,17 @@ header {
     display: none;
 }
 
+/* Banner hidden (offline, or a property with no photo): the floating back
+   button now sits over the top of the info pane, so drop it below the notch and
+   push the title/content clear of it instead of letting them overlap. */
+#detail-info.no-banner .map-back-btn {
+    top: 0;
+    margin-top: calc(env(safe-area-inset-top, 0px) + 12px);
+}
+#detail-info.no-banner #detail-content {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 58px);
+}
+
 #carousel-track {
     display: flex;
     transition: transform 0.3s ease;
