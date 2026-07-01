@@ -15,6 +15,9 @@ const SHELL_CACHE = 'vlt-shell-' + SW_VERSION;
 // (which stored opaque error/rate-limit responses as if they were real tiles).
 // The activate handler deletes any older vlt-tiles-* cache automatically.
 const TILE_CACHE  = 'vlt-tiles-v2';
+// Per-trail content (descriptions, photos, gallery, boundary/parking/trail KML)
+// so every trail page is fully usable offline, not just the map tiles.
+const CONTENT_CACHE = 'vlt-content-v1';
 
 // Cross-origin libraries the app needs to boot offline (stable, versioned URLs).
 const LIB_HOSTS = new Set([
@@ -58,7 +61,8 @@ self.addEventListener('activate', (event) => {
         await Promise.all(
             keys.filter((k) =>
                     (k.startsWith('vlt-shell-') && k !== SHELL_CACHE) ||
-                    (k.startsWith('vlt-tiles-') && k !== TILE_CACHE))
+                    (k.startsWith('vlt-tiles-') && k !== TILE_CACHE) ||
+                    (k.startsWith('vlt-content-') && k !== CONTENT_CACHE))
                 .map((k) => caches.delete(k))
         );
         await self.clients.claim();
@@ -130,57 +134,63 @@ self.addEventListener('fetch', (event) => {
     //    straight to the network. Offline failures are handled in the app.
 });
 
-// ── Tile pre-caching driven by the page ──────────────────────
-// The page hands us a list of tile URLs; we fetch + cache them with retries and
-// report accurate success/failure counts so the page only marks the download
-// "complete" when nothing failed. Also answers TILE_STATUS (how many tiles are
-// cached) and CLEAR_TILES (wipe the tile cache) for the manual Resources button.
+// ── Asset pre-caching driven by the page ─────────────────────
+// The page hands us a list of URLs (map tiles, or per-trail content) plus which
+// cache to store them in; we fetch + cache them with retries and report accurate
+// success/failure counts so the page only marks the download "complete" when
+// nothing failed. Also answers TILE_STATUS (how many entries are cached) and
+// CLEAR_TILES (wipe a cache). data.cacheName selects the target cache and
+// defaults to the tile cache for backward compatibility.
 self.addEventListener('message', (event) => {
     const data = event.data || {};
     const jobId = data.jobId;
+    const cacheName = data.cacheName || TILE_CACHE;
     const reply = (msg) => { try { event.source && event.source.postMessage(Object.assign({ jobId }, msg)); } catch (_) {} };
 
-    // How many tiles are currently cached (drives the "X map tiles saved" label).
+    // How many entries are currently cached (drives the "X saved" labels).
     if (data.type === 'TILE_STATUS') {
         event.waitUntil((async () => {
             let count = 0;
-            try { const c = await caches.open(TILE_CACHE); count = (await c.keys()).length; } catch (_) {}
+            try { const c = await caches.open(cacheName); count = (await c.keys()).length; } catch (_) {}
             reply({ type: 'TILE_STATUS_RESULT', count });
         })());
         return;
     }
 
-    // Wipe every cached tile (used before a clean re-download if ever needed).
+    // Wipe every entry in the selected cache.
     if (data.type === 'CLEAR_TILES') {
         event.waitUntil((async () => {
-            try { await caches.delete(TILE_CACHE); } catch (_) {}
+            try { await caches.delete(cacheName); } catch (_) {}
             reply({ type: 'CLEAR_TILES_DONE' });
         })());
         return;
     }
 
     if (data.type === 'CACHE_TILES' && Array.isArray(data.urls)) {
-        // force → re-fetch and overwrite even already-cached tiles (heals a tile
-        // that a previous run stored as an opaque error response).
+        // force → re-fetch and overwrite even already-cached entries (heals an
+        // entry that a previous run stored as an opaque error response).
         const force = !!data.force;
         event.waitUntil((async () => {
-            const cache = await caches.open(TILE_CACHE);
+            const cache = await caches.open(cacheName);
             const urls = data.urls;
             const total = urls.length;
             let done = 0;
             let quotaError = false;
 
-            // Returns true if the tile ended up cached, false on a real failure.
+            // Returns true if the entry ended up cached, false on a real failure.
             async function fetchOne(u) {
                 if (!force) {
                     const hit = await cache.match(u);
                     if (hit) return true;
                 }
                 // Cross-origin tile servers (Google, USGS) don't send CORS
-                // headers, so the response is opaque and its HTTP status is
-                // hidden. A network drop/timeout REJECTS the fetch — that's the
-                // failure we catch and retry. no-store bypasses the HTTP cache so
-                // a forced re-download actually re-fetches fresh bytes.
+                // headers, so their response is opaque and the HTTP status is
+                // hidden — we accept opaque as success. Same-origin content
+                // returns a normal (basic) response, so resp.ok genuinely
+                // validates it (a 404 won't be cached). A network drop/timeout
+                // REJECTS the fetch — that's the failure we catch and retry.
+                // no-store bypasses the HTTP cache so a forced re-download
+                // actually re-fetches fresh bytes.
                 const resp = await fetch(u, { mode: 'no-cors', cache: 'no-store' });
                 if (resp && (resp.ok || resp.type === 'opaque')) {
                     await cache.put(u, resp.clone());

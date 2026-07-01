@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.6";
+const APP_VERSION = "1.7.7";
 
 const properties = [
     {
@@ -2787,11 +2787,15 @@ const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf
 // view so the maps work offline. A super-thin top bar shows progress; the app
 // stays fully usable meanwhile.
 const PRECACHE_DONE_KEY = "vltMapsPrecached_v3";
-// How many tiles a complete download cached last time. The "Download All"
-// button is considered done (and greyed out) only while the tile cache still
-// holds at least this many tiles — so if the cache is cleared/evicted the
-// button reactivates on its own. See refreshOfflineMapsStatus.
+// How many tiles / content files a complete download cached last time. The
+// "Download All" button is considered done (and greyed out) only while both
+// caches still hold at least this many entries — so if a cache is cleared or
+// evicted the button reactivates on its own. See refreshOfflineMapsStatus.
 const OFFLINE_MAPS_TARGET_KEY = "vltMapsTileTarget";
+const OFFLINE_CONTENT_TARGET_KEY = "vltMapsContentTarget";
+// Cache names — must match the ones in sw.js.
+const TILE_CACHE_NAME = "vlt-tiles-v2";
+const CONTENT_CACHE_NAME = "vlt-content-v1";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2898,11 +2902,34 @@ async function _computeAllTrailTileUrls() {
     return Array.from(urls);
 }
 
+// Every same-origin file a trail page loads at runtime — description text,
+// photos (card + detail + gallery), and the trail/connector/boundary/parking
+// map layers. The trail's stats (title, difficulty, length, duration, features)
+// live in the app bundle itself, which the service worker already caches, so
+// they need no separate download. Shared-parking files belong to another
+// property's folder and are captured when that property is walked here.
+function computeAllTrailAssetUrls() {
+    const urls = new Set();
+    for (const prop of properties) {
+        const add = (file) => { if (file) urls.add(propPath(prop, file)); };
+        add(prop.photo);
+        add(prop.description);
+        add(prop.trail);
+        (prop.connectors || []).forEach(add);
+        if (typeof prop.boundary === "string") add(prop.boundary);
+        else if (prop.boundary && Array.isArray(prop.boundary.parcels)) prop.boundary.parcels.forEach(add);
+        (prop.parking || []).forEach(add);
+        for (const g of (galleryPhotos[prop.folder] || []))
+            urls.add("Properties/" + prop.folder + "/Photo Gallery/" + g);
+    }
+    return Array.from(urls);
+}
+
 // Hand a list of tile URLs to the service worker and resolve with its final
 // { ok, failed, total, quotaError } report. onProgress(pct) fires as it runs.
 // force=true re-fetches and overwrites tiles already in the cache (heals a bad
 // cache); force=false skips tiles that are already present (fast auto-run).
-function runTileCacheJob(urls, { force = false, onProgress } = {}) {
+function runTileCacheJob(urls, { force = false, cacheName, onProgress } = {}) {
     return new Promise((resolve, reject) => {
         if (!("serviceWorker" in navigator)) return reject(new Error("no service worker"));
         navigator.serviceWorker.ready.then((reg) => {
@@ -2920,19 +2947,19 @@ function runTileCacheJob(urls, { force = false, onProgress } = {}) {
                 }
             };
             navigator.serviceWorker.addEventListener("message", onMsg);
-            sw.postMessage({ type: "CACHE_TILES", urls, jobId, force });
+            sw.postMessage({ type: "CACHE_TILES", urls, jobId, force, cacheName });
         }).catch(reject);
     });
 }
 
-// Ask the service worker how many tiles are currently cached.
-function getCachedTileCount() {
+// Ask the service worker how many entries are cached in the given cache.
+function getCachedTileCount(cacheName) {
     return new Promise((resolve) => {
         if (!("serviceWorker" in navigator)) return resolve(0);
         navigator.serviceWorker.ready.then((reg) => {
             const sw = reg.active || navigator.serviceWorker.controller;
             if (!sw) return resolve(0);
-            const jobId = "ts" + Date.now();
+            const jobId = "ts" + Date.now() + "-" + Math.random().toString(36).slice(2);
             const onMsg = (ev) => {
                 const d = ev.data || {};
                 if (d.jobId !== jobId || d.type !== "TILE_STATUS_RESULT") return;
@@ -2940,37 +2967,78 @@ function getCachedTileCount() {
                 resolve(d.count || 0);
             };
             navigator.serviceWorker.addEventListener("message", onMsg);
-            sw.postMessage({ type: "TILE_STATUS", jobId });
+            sw.postMessage({ type: "TILE_STATUS", jobId, cacheName });
         }).catch(() => resolve(0));
     });
 }
 
+// Download everything needed for full offline use — map tiles AND per-trail
+// content — reporting a single combined progress. Resolves with both SW reports.
+async function downloadOfflineBundle({ force = false, onBar, onStatus } = {}) {
+    const tileUrls  = await computeAllTrailTileUrls();
+    const assetUrls = computeAllTrailAssetUrls();
+    const grand = (tileUrls.length + assetUrls.length) || 1;
+    let tileDone = 0, contentDone = 0;
+    const bar = () => { if (onBar) onBar(Math.round((tileDone + contentDone) / grand * 100)); };
+
+    if (onStatus) onStatus("Downloading maps… 0%");
+    const tiles = await runTileCacheJob(tileUrls, {
+        force, cacheName: TILE_CACHE_NAME,
+        onProgress: (pct, d) => { tileDone = d.done; bar(); if (onStatus) onStatus(`Downloading maps… ${pct}%`); },
+    });
+    tileDone = tileUrls.length; bar();
+
+    if (onStatus) onStatus("Downloading trail info… 0%");
+    const content = await runTileCacheJob(assetUrls, {
+        force, cacheName: CONTENT_CACHE_NAME,
+        onProgress: (pct, d) => { contentDone = d.done; bar(); if (onStatus) onStatus(`Downloading trail info… ${pct}%`); },
+    });
+    contentDone = assetUrls.length; bar();
+
+    return { tiles, content };
+}
+
+// Cheap check (no heavy re-computation): are both caches still holding at least
+// as much as the last complete download? Used on every reopen so we only spend
+// effort when something is actually missing/evicted.
+async function offlineBundleComplete() {
+    const tileTarget    = parseInt(localStorage.getItem(OFFLINE_MAPS_TARGET_KEY) || "0", 10);
+    const contentTarget = parseInt(localStorage.getItem(OFFLINE_CONTENT_TARGET_KEY) || "0", 10);
+    if (!tileTarget || !contentTarget) return false;
+    const tileCount    = await getCachedTileCount(TILE_CACHE_NAME);
+    const contentCount = await getCachedTileCount(CONTENT_CACHE_NAME);
+    return tileCount >= tileTarget && contentCount >= contentTarget;
+}
+
+// Runs on every app open (and on reconnect): verifies both the map tiles and the
+// trail content are cached, and downloads anything missing. Fast no-op when
+// everything is already saved.
 async function maybePrecacheMaps() {
     if (mapPrecacheStarted) return;
     if (!("serviceWorker" in navigator) || !navigator.onLine) return;
-    if (localStorage.getItem(PRECACHE_DONE_KEY)) return;
     if (typeof L === "undefined" || typeof properties === "undefined") return;
+    try { await navigator.serviceWorker.ready; } catch (_) { return; }
+    // Already fully saved → nothing to do this session.
+    if (await offlineBundleComplete()) return;
     mapPrecacheStarted = true;
     try {
-        const urls = await computeAllTrailTileUrls();
-        if (!urls.length) { mapPrecacheStarted = false; return; }
         precacheBarSet(2);
-        const res = await runTileCacheJob(urls, {
-            force: false,
-            onProgress: (pct) => precacheBarSet(pct),
-        });
+        const res = await downloadOfflineBundle({ force: false, onBar: precacheBarSet });
         precacheBarSet(100);
         setTimeout(precacheBarHide, 700);
-        // Only remember "done" if every tile made it. If any failed (flaky
+        const clean = res.tiles.failed === 0 && res.content.failed === 0
+            && !res.tiles.quotaError && !res.content.quotaError;
+        // Only remember "done" if everything made it. If any failed (flaky
         // connection) or storage filled up, leave the flag unset and reset the
-        // guard so the next `online` event retries the missing tiles.
-        if (res.failed === 0 && !res.quotaError) {
+        // guard so the next `online` event retries the missing pieces.
+        if (clean) {
+            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.tiles.ok));
+            localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(res.content.ok));
             localStorage.setItem(PRECACHE_DONE_KEY, "1");
-            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.ok));
             refreshOfflineMapsStatus();
         } else {
             mapPrecacheStarted = false;
-            console.warn("precache maps incomplete:", res);
+            console.warn("offline precache incomplete:", res);
         }
     } catch (e) {
         console.warn("precache maps:", e);
@@ -3017,22 +3085,26 @@ async function refreshOfflineMapsStatus() {
     const el = document.getElementById("offline-maps-status");
     if (!el || downloadAllRunning) return;
     try {
-        const count = await getCachedTileCount();
-        const target = parseInt(localStorage.getItem(OFFLINE_MAPS_TARGET_KEY) || "0", 10);
-        const fullyDownloaded = target > 0 && count >= target;
+        const tileCount    = await getCachedTileCount(TILE_CACHE_NAME);
+        const contentCount = await getCachedTileCount(CONTENT_CACHE_NAME);
+        const tileTarget    = parseInt(localStorage.getItem(OFFLINE_MAPS_TARGET_KEY) || "0", 10);
+        const contentTarget = parseInt(localStorage.getItem(OFFLINE_CONTENT_TARGET_KEY) || "0", 10);
+        const fullyDownloaded = tileTarget > 0 && contentTarget > 0
+            && tileCount >= tileTarget && contentCount >= contentTarget;
         if (fullyDownloaded) {
-            setOfflineMapsStatus(`✓ All maps saved (${count} tiles). They'll work with no signal.`, "ok");
-        } else if (count > 0) {
-            setOfflineMapsStatus(`${count} map tiles saved — tap to finish downloading the rest.`, "warn");
+            setOfflineMapsStatus(`✓ Maps & trail info saved (${tileCount + contentCount} items). Everything works with no signal.`, "ok");
+        } else if (tileCount + contentCount > 0) {
+            setOfflineMapsStatus("Partially saved — tap to finish downloading for offline use.", "warn");
         } else {
             setOfflineMapsStatus("No maps saved yet — tap to download for offline use.", "");
         }
-        // Cache was cleared or evicted below the last complete download → drop the
-        // stale "done" markers so both this button and the automatic precache
-        // treat the maps as needing to be re-downloaded.
-        if (!fullyDownloaded && target > 0) {
+        // A cache was cleared or evicted below the last complete download → drop
+        // the stale "done" markers so both this button and the automatic precache
+        // treat the offline bundle as needing to be re-downloaded.
+        if (!fullyDownloaded && (tileTarget > 0 || contentTarget > 0)) {
             localStorage.removeItem(PRECACHE_DONE_KEY);
             localStorage.removeItem(OFFLINE_MAPS_TARGET_KEY);
+            localStorage.removeItem(OFFLINE_CONTENT_TARGET_KEY);
         }
         setOfflineMapsButtonDone(fullyDownloaded);
     } catch (_) { /* leave default text */ }
@@ -3052,28 +3124,24 @@ async function downloadAllOfflineMaps() {
     downloadAllRunning = true;
     let fullyDone = false;
     if (btn) { btn.disabled = true; btn.classList.add("busy"); }
-    setOfflineMapsStatus("Preparing map list…", "");
+    setOfflineMapsStatus("Preparing download…", "");
     try {
         // Make sure the service worker is registered/active before we start.
         try { await navigator.serviceWorker.register("sw.js"); } catch (_) {}
-        const urls = await computeAllTrailTileUrls();
-        if (!urls.length) {
-            setOfflineMapsStatus("Couldn't build the map list. Please try again.", "err");
-            return;
-        }
-        setOfflineMapsStatus("Downloading maps… 0%", "");
-        const res = await runTileCacheJob(urls, {
+        const { tiles, content } = await downloadOfflineBundle({
             force: true,
-            onProgress: (pct) => setOfflineMapsStatus(`Downloading maps… ${pct}%`, ""),
+            onStatus: (msg) => setOfflineMapsStatus(msg, ""),
         });
-        if (res.quotaError) {
+        if (tiles.quotaError || content.quotaError) {
             setOfflineMapsStatus("Ran out of storage space. Free up space on your device and try again.", "err");
-        } else if (res.failed > 0) {
-            setOfflineMapsStatus(`Saved ${res.ok} of ${res.total} tiles — ${res.failed} didn't download. Tap to retry.`, "warn");
+        } else if (tiles.failed > 0 || content.failed > 0) {
+            const missed = tiles.failed + content.failed;
+            setOfflineMapsStatus(`${missed} item${missed === 1 ? "" : "s"} didn't download. Tap to retry.`, "warn");
         } else {
             localStorage.setItem(PRECACHE_DONE_KEY, "1");
-            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.ok));
-            setOfflineMapsStatus(`✓ All maps saved (${res.ok} tiles). They'll work with no signal.`, "ok");
+            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(tiles.ok));
+            localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(content.ok));
+            setOfflineMapsStatus(`✓ Maps & trail info saved (${tiles.ok + content.ok} items). Everything works with no signal.`, "ok");
             fullyDone = true;
         }
     } catch (e) {
