@@ -9,9 +9,12 @@
 //
 // Bump SW_VERSION to invalidate the shell cache on a future change.
 // ============================================================
-const SW_VERSION  = 'v1';
+const SW_VERSION  = 'v2';
 const SHELL_CACHE = 'vlt-shell-' + SW_VERSION;
-const TILE_CACHE  = 'vlt-tiles-v1';   // tiles are immutable; survive shell bumps
+// Bump the tile-cache version to purge tiles poisoned by the pre-v2 cacher
+// (which stored opaque error/rate-limit responses as if they were real tiles).
+// The activate handler deletes any older vlt-tiles-* cache automatically.
+const TILE_CACHE  = 'vlt-tiles-v2';
 
 // Cross-origin libraries the app needs to boot offline (stable, versioned URLs).
 const LIB_HOSTS = new Set([
@@ -53,7 +56,9 @@ self.addEventListener('activate', (event) => {
     event.waitUntil((async () => {
         const keys = await caches.keys();
         await Promise.all(
-            keys.filter((k) => k.startsWith('vlt-shell-') && k !== SHELL_CACHE)
+            keys.filter((k) =>
+                    (k.startsWith('vlt-shell-') && k !== SHELL_CACHE) ||
+                    (k.startsWith('vlt-tiles-') && k !== TILE_CACHE))
                 .map((k) => caches.delete(k))
         );
         await self.clients.claim();
@@ -125,34 +130,100 @@ self.addEventListener('fetch', (event) => {
     //    straight to the network. Offline failures are handled in the app.
 });
 
-// ── Tile pre-caching driven by the page (with progress reporting) ──
+// ── Tile pre-caching driven by the page ──────────────────────
+// The page hands us a list of tile URLs; we fetch + cache them with retries and
+// report accurate success/failure counts so the page only marks the download
+// "complete" when nothing failed. Also answers TILE_STATUS (how many tiles are
+// cached) and CLEAR_TILES (wipe the tile cache) for the manual Resources button.
 self.addEventListener('message', (event) => {
     const data = event.data || {};
+    const jobId = data.jobId;
+    const reply = (msg) => { try { event.source && event.source.postMessage(Object.assign({ jobId }, msg)); } catch (_) {} };
+
+    // How many tiles are currently cached (drives the "X map tiles saved" label).
+    if (data.type === 'TILE_STATUS') {
+        event.waitUntil((async () => {
+            let count = 0;
+            try { const c = await caches.open(TILE_CACHE); count = (await c.keys()).length; } catch (_) {}
+            reply({ type: 'TILE_STATUS_RESULT', count });
+        })());
+        return;
+    }
+
+    // Wipe every cached tile (used before a clean re-download if ever needed).
+    if (data.type === 'CLEAR_TILES') {
+        event.waitUntil((async () => {
+            try { await caches.delete(TILE_CACHE); } catch (_) {}
+            reply({ type: 'CLEAR_TILES_DONE' });
+        })());
+        return;
+    }
+
     if (data.type === 'CACHE_TILES' && Array.isArray(data.urls)) {
+        // force → re-fetch and overwrite even already-cached tiles (heals a tile
+        // that a previous run stored as an opaque error response).
+        const force = !!data.force;
         event.waitUntil((async () => {
             const cache = await caches.open(TILE_CACHE);
             const urls = data.urls;
             const total = urls.length;
             let done = 0;
-            const post = (type) => { try { event.source && event.source.postMessage({ type, done, total }); } catch (_) {} };
-            // Modest concurrency so we don't hammer the tile servers.
-            const QUEUE = urls.slice();
-            async function worker() {
-                while (QUEUE.length) {
-                    const u = QUEUE.shift();
-                    try {
-                        const hit = await cache.match(u);
-                        if (!hit) {
-                            const resp = await fetch(u, { mode: 'no-cors' });
-                            if (resp) await cache.put(u, resp.clone());
-                        }
-                    } catch (_) { /* skip a failed tile */ }
-                    done++;
-                    if (done % 4 === 0 || done === total) post('CACHE_TILES_PROGRESS');
+            let quotaError = false;
+
+            // Returns true if the tile ended up cached, false on a real failure.
+            async function fetchOne(u) {
+                if (!force) {
+                    const hit = await cache.match(u);
+                    if (hit) return true;
                 }
+                // Cross-origin tile servers (Google, USGS) don't send CORS
+                // headers, so the response is opaque and its HTTP status is
+                // hidden. A network drop/timeout REJECTS the fetch — that's the
+                // failure we catch and retry. no-store bypasses the HTTP cache so
+                // a forced re-download actually re-fetches fresh bytes.
+                const resp = await fetch(u, { mode: 'no-cors', cache: 'no-store' });
+                if (resp && (resp.ok || resp.type === 'opaque')) {
+                    await cache.put(u, resp.clone());
+                    return true;
+                }
+                return false;
             }
-            await Promise.all([worker(), worker(), worker(), worker()]);
-            post('CACHE_TILES_DONE');
+
+            // Run a list through a small worker pool. countProgress=true reports
+            // the top bar's progress (only the first, full pass does this).
+            async function runPass(list, countProgress) {
+                const queue = list.slice();
+                const fails = [];
+                async function worker() {
+                    while (queue.length && !quotaError) {
+                        const u = queue.shift();
+                        let ok = false;
+                        try { ok = await fetchOne(u); }
+                        catch (e) { if (e && e.name === 'QuotaExceededError') quotaError = true; }
+                        if (!ok && !quotaError) fails.push(u);
+                        if (countProgress) {
+                            done++;
+                            if (done % 4 === 0 || done === total)
+                                reply({ type: 'CACHE_TILES_PROGRESS', done, total });
+                        }
+                    }
+                }
+                // Modest concurrency so we don't trip tile-server rate limits.
+                await Promise.all([worker(), worker(), worker(), worker()]);
+                return fails;
+            }
+
+            let fails = await runPass(urls, true);
+            // Retry transient failures a couple of times with a short backoff —
+            // this is what rescues a download on a flaky connection.
+            for (let i = 0; i < 2 && fails.length && !quotaError; i++) {
+                await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+                fails = await runPass(fails, false);
+            }
+
+            const failed = quotaError ? (total - done) : fails.length;
+            reply({ type: 'CACHE_TILES_DONE', done: total, total, ok: total - failed, failed, quotaError });
         })());
+        return;
     }
 });

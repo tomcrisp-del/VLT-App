@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.5";
+const APP_VERSION = "1.7.6";
 
 const properties = [
     {
@@ -2786,7 +2786,7 @@ const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf
 // flowing) and, on first run, downloads each trail's centered satellite+topo
 // view so the maps work offline. A super-thin top bar shows progress; the app
 // stays fully usable meanwhile.
-const PRECACHE_DONE_KEY = "vltMapsPrecached_v2";
+const PRECACHE_DONE_KEY = "vltMapsPrecached_v3";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2811,6 +2811,11 @@ function latToTileY(lat, z) {
 // already span the whole viewport, so the edge tiles cover it — no padding ring.
 function viewTileUrls(b, zoom) {
     const out = [];
+    // Pad the bounds by ~15% so the cached tiles include a ring around the
+    // visible edge. This absorbs any rounding/orientation/size difference
+    // between download-time and view-time so the offline map never shows a
+    // blank stripe at the edge.
+    if (b && typeof b.pad === "function") b = b.pad(0.15);
     const span = (zz) => {
         const m = Math.pow(2, zz), cl = (v) => Math.max(0, Math.min(m - 1, v));
         return {
@@ -2834,7 +2839,18 @@ function viewTileUrls(b, zoom) {
 // map sets the (locked) zoom; we then cache the EXPANDED viewport extent at that
 // same zoom, which is a superset — so both the normal and expanded offline maps
 // render fully.
-async function computeAllTrailTileUrls() {
+// Single-flight guard: building the tile list spins up off-screen Leaflet maps,
+// so two overlapping computations (e.g. the auto precache still running when the
+// user taps "Download All") would fight over the shared DOM and produce bloated,
+// inconsistent bounds. If one is already in flight, reuse its result.
+let _tileUrlsInFlight = null;
+function computeAllTrailTileUrls() {
+    if (_tileUrlsInFlight) return _tileUrlsInFlight;
+    _tileUrlsInFlight = _computeAllTrailTileUrls().finally(() => { _tileUrlsInFlight = null; });
+    return _tileUrlsInFlight;
+}
+
+async function _computeAllTrailTileUrls() {
     const mk = (w, h) => {
         const div = document.createElement("div");
         div.style.cssText = `position:fixed;left:-10000px;top:0;width:${w}px;height:${h}px;`;
@@ -2854,6 +2870,17 @@ async function computeAllTrailTileUrls() {
             const layer = L.geoJSON(geo, { filter: (f) => f.geometry.type !== "Point" });
             const b = layer.getBounds();
             if (!b || !b.isValid()) continue;
+            // Extend by connector segments exactly as the detail view does
+            // (see showPropertyDetail) — otherwise a trail with connectors fits
+            // to a different zoom offline and requests uncached tiles.
+            for (const conn of (prop.connectors || [])) {
+                try {
+                    const cGeo = await loadKml(propPath(prop, conn));
+                    const cLayer = L.geoJSON(cGeo, { filter: (f) => f.geometry.type !== "Point" });
+                    const cb = cLayer.getBounds();
+                    if (cb && cb.isValid()) b.extend(cb);
+                } catch (_) { /* skip a connector that won't load */ }
+            }
             collapsed.map.fitBounds(b, { padding: [30, 30] });
             const z = collapsed.map.getZoom();
             // Expanded viewport bounds at the SAME zoom (the locked offline zoom).
@@ -2866,6 +2893,53 @@ async function computeAllTrailTileUrls() {
     return Array.from(urls);
 }
 
+// Hand a list of tile URLs to the service worker and resolve with its final
+// { ok, failed, total, quotaError } report. onProgress(pct) fires as it runs.
+// force=true re-fetches and overwrites tiles already in the cache (heals a bad
+// cache); force=false skips tiles that are already present (fast auto-run).
+function runTileCacheJob(urls, { force = false, onProgress } = {}) {
+    return new Promise((resolve, reject) => {
+        if (!("serviceWorker" in navigator)) return reject(new Error("no service worker"));
+        navigator.serviceWorker.ready.then((reg) => {
+            const sw = reg.active || navigator.serviceWorker.controller;
+            if (!sw) return reject(new Error("no active service worker"));
+            const jobId = "tc" + Date.now() + "-" + Math.random().toString(36).slice(2);
+            const onMsg = (ev) => {
+                const d = ev.data || {};
+                if (d.jobId !== jobId) return;
+                if (d.type === "CACHE_TILES_PROGRESS") {
+                    if (onProgress) onProgress(Math.round((d.done / d.total) * 100), d);
+                } else if (d.type === "CACHE_TILES_DONE") {
+                    navigator.serviceWorker.removeEventListener("message", onMsg);
+                    resolve(d);
+                }
+            };
+            navigator.serviceWorker.addEventListener("message", onMsg);
+            sw.postMessage({ type: "CACHE_TILES", urls, jobId, force });
+        }).catch(reject);
+    });
+}
+
+// Ask the service worker how many tiles are currently cached.
+function getCachedTileCount() {
+    return new Promise((resolve) => {
+        if (!("serviceWorker" in navigator)) return resolve(0);
+        navigator.serviceWorker.ready.then((reg) => {
+            const sw = reg.active || navigator.serviceWorker.controller;
+            if (!sw) return resolve(0);
+            const jobId = "ts" + Date.now();
+            const onMsg = (ev) => {
+                const d = ev.data || {};
+                if (d.jobId !== jobId || d.type !== "TILE_STATUS_RESULT") return;
+                navigator.serviceWorker.removeEventListener("message", onMsg);
+                resolve(d.count || 0);
+            };
+            navigator.serviceWorker.addEventListener("message", onMsg);
+            sw.postMessage({ type: "TILE_STATUS", jobId });
+        }).catch(() => resolve(0));
+    });
+}
+
 async function maybePrecacheMaps() {
     if (mapPrecacheStarted) return;
     if (!("serviceWorker" in navigator) || !navigator.onLine) return;
@@ -2873,25 +2947,24 @@ async function maybePrecacheMaps() {
     if (typeof L === "undefined" || typeof properties === "undefined") return;
     mapPrecacheStarted = true;
     try {
-        const reg = await navigator.serviceWorker.ready;
-        const sw = reg.active || navigator.serviceWorker.controller;
-        if (!sw) { mapPrecacheStarted = false; return; }
         const urls = await computeAllTrailTileUrls();
-        if (!urls.length) return;
+        if (!urls.length) { mapPrecacheStarted = false; return; }
         precacheBarSet(2);
-        const onMsg = (ev) => {
-            const d = ev.data || {};
-            if (d.type === "CACHE_TILES_PROGRESS") {
-                precacheBarSet(Math.round((d.done / d.total) * 100));
-            } else if (d.type === "CACHE_TILES_DONE") {
-                precacheBarSet(100);
-                localStorage.setItem(PRECACHE_DONE_KEY, "1");
-                setTimeout(precacheBarHide, 700);
-                navigator.serviceWorker.removeEventListener("message", onMsg);
-            }
-        };
-        navigator.serviceWorker.addEventListener("message", onMsg);
-        sw.postMessage({ type: "CACHE_TILES", urls });
+        const res = await runTileCacheJob(urls, {
+            force: false,
+            onProgress: (pct) => precacheBarSet(pct),
+        });
+        precacheBarSet(100);
+        setTimeout(precacheBarHide, 700);
+        // Only remember "done" if every tile made it. If any failed (flaky
+        // connection) or storage filled up, leave the flag unset and reset the
+        // guard so the next `online` event retries the missing tiles.
+        if (res.failed === 0 && !res.quotaError) {
+            localStorage.setItem(PRECACHE_DONE_KEY, "1");
+        } else {
+            mapPrecacheStarted = false;
+            console.warn("precache maps incomplete:", res);
+        }
     } catch (e) {
         console.warn("precache maps:", e);
         precacheBarHide();
@@ -2909,6 +2982,85 @@ if ("serviceWorker" in navigator) {
     window.addEventListener("online", () => { setTimeout(maybePrecacheMaps, 1500); });
 }
 window.maybePrecacheMaps = maybePrecacheMaps;
+
+// ── "Download All Offline Maps" button (Resources page) ──────
+// A user-driven, force re-download of every trail's tiles. Unlike the automatic
+// precache it ignores the "already done" flag and overwrites existing tiles, so
+// it heals a bad/partial cache and re-downloads after iOS has evicted the maps.
+let downloadAllRunning = false;
+
+function setOfflineMapsStatus(msg, state) {
+    const el = document.getElementById("offline-maps-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove("ok", "warn", "err");
+    if (state) el.classList.add(state);
+}
+
+async function refreshOfflineMapsStatus() {
+    const el = document.getElementById("offline-maps-status");
+    if (!el || downloadAllRunning) return;
+    try {
+        const count = await getCachedTileCount();
+        if (count > 0) setOfflineMapsStatus(`${count} map tiles saved on this device.`, "ok");
+        else setOfflineMapsStatus("No maps saved yet — tap to download for offline use.", "");
+    } catch (_) { /* leave default text */ }
+}
+
+async function downloadAllOfflineMaps() {
+    if (downloadAllRunning) return;
+    const btn = document.getElementById("offline-maps-btn");
+    if (!("serviceWorker" in navigator)) {
+        setOfflineMapsStatus("Offline maps aren't supported by this browser.", "err");
+        return;
+    }
+    if (!navigator.onLine) {
+        setOfflineMapsStatus("You're offline. Connect to the internet, then try again.", "warn");
+        return;
+    }
+    downloadAllRunning = true;
+    if (btn) { btn.disabled = true; btn.classList.add("busy"); }
+    setOfflineMapsStatus("Preparing map list…", "");
+    try {
+        // Make sure the service worker is registered/active before we start.
+        try { await navigator.serviceWorker.register("sw.js"); } catch (_) {}
+        const urls = await computeAllTrailTileUrls();
+        if (!urls.length) {
+            setOfflineMapsStatus("Couldn't build the map list. Please try again.", "err");
+            return;
+        }
+        setOfflineMapsStatus("Downloading maps… 0%", "");
+        const res = await runTileCacheJob(urls, {
+            force: true,
+            onProgress: (pct) => setOfflineMapsStatus(`Downloading maps… ${pct}%`, ""),
+        });
+        if (res.quotaError) {
+            setOfflineMapsStatus("Ran out of storage space. Free up space on your device and try again.", "err");
+        } else if (res.failed > 0) {
+            setOfflineMapsStatus(`Saved ${res.ok} of ${res.total} tiles — ${res.failed} didn't download. Tap to retry.`, "warn");
+        } else {
+            localStorage.setItem(PRECACHE_DONE_KEY, "1");
+            setOfflineMapsStatus(`✓ All maps saved (${res.ok} tiles). They'll work with no signal.`, "ok");
+        }
+    } catch (e) {
+        console.warn("download all offline maps:", e);
+        setOfflineMapsStatus("Something went wrong. Please try again.", "err");
+    } finally {
+        downloadAllRunning = false;
+        if (btn) { btn.disabled = false; btn.classList.remove("busy"); }
+    }
+}
+
+(function wireOfflineMapsButton() {
+    const btn = document.getElementById("offline-maps-btn");
+    if (!btn) return;
+    btn.addEventListener("click", downloadAllOfflineMaps);
+    // Show how many tiles are already cached once the SW is ready.
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then(refreshOfflineMapsStatus).catch(() => {});
+    }
+    window.addEventListener("online", refreshOfflineMapsStatus);
+})();
 
 // ── Offline map lock ─────────────────────────────────────────
 // Offline we only have each trail's default cached view, so disable zoom, pan,
