@@ -11,12 +11,12 @@
     <meta name="apple-mobile-web-app-title" content="OWLS Trails">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2c5f2d">
-    <link rel="manifest" href="manifest.json?v=1.7.5">
+    <link rel="manifest" href="manifest.json?v=1.7.6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=1.7.5">
+    <link rel="stylesheet" href="css/style.css?v=1.7.6">
 </head>
 <body>
     <!-- Thin offline-map download progress bar (auto-shows only while caching) -->
@@ -485,6 +485,14 @@
                         <a href="http://www.vinalhavenhistoricalsociety.org/home.html" target="_blank" class="resource-link">🏛️ Visit the Vinalhaven Historical Society</a>
                     </div>
                 </div>
+            </div>
+
+            <!-- Offline maps — download every trail's map for use with no signal. -->
+            <div class="offline-maps-card">
+                <h3 class="offline-maps-title">📍 Offline Maps</h3>
+                <p class="offline-maps-desc">Save every trail map to your phone so they work even with no cell signal. Do this on Wi-Fi before you head out.</p>
+                <button id="offline-maps-btn" class="offline-maps-btn" type="button">Download All Offline Maps</button>
+                <p id="offline-maps-status" class="offline-maps-status">Checking saved maps…</p>
             </div>
 
             <!-- App version — bump APP_VERSION in js/app.js on each deploy so
@@ -1239,12 +1247,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.2/togeojson.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="js/wildlife-data.js?v=1.7.5"></script>
-    <script src="js/app.js?v=1.7.5"></script>
+    <script src="js/wildlife-data.js?v=1.7.6"></script>
+    <script src="js/app.js?v=1.7.6"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="js/owls.js?v=1.7.5"></script>
+    <script src="js/owls.js?v=1.7.6"></script>
 </body>
 </html>

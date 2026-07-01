@@ -33,6 +33,58 @@ body {
     transition: width 0.3s ease;
 }
 
+/* ── Offline Maps card (Resources page) ── */
+.offline-maps-card {
+    border: 2px solid #3d8b6f;
+    border-radius: 6px;
+    background: #f0f7f3;
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+.offline-maps-title {
+    margin: 0 0 0.35rem;
+    font-family: "Chaparral Pro", Georgia, serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #245c48;
+}
+.offline-maps-desc {
+    margin: 0 0 0.85rem;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: #333;
+}
+.offline-maps-btn {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background: #3d8b6f;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-family: "Chaparral Pro", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+.offline-maps-btn:active { background: #2f7059; }
+.offline-maps-btn:disabled,
+.offline-maps-btn.busy {
+    background: #8bb7a6;
+    cursor: default;
+}
+.offline-maps-status {
+    margin: 0.7rem 0 0;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    color: #555;
+    min-height: 1.2em;
+}
+.offline-maps-status.ok  { color: #1f7a4d; font-weight: 600; }
+.offline-maps-status.warn { color: #b26a00; font-weight: 600; }
+.offline-maps-status.err  { color: #c0392b; font-weight: 600; }
+
 /* Offline map state — only the cached default view is available, so zoom is
    hidden and pan is disabled. Expand/Back-to-Info stays (we cache the expanded
    extent too); the Satellite/Topographic toggle still works. */
