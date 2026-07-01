@@ -539,7 +539,11 @@ let pendingIssueLat    = null;
 let pendingIssueLng    = null;
 let selectedSeverity   = null;
 let issueMapRef        = null;
-let issueMapClickFn    = null;
+let issueMapClickFn    = null;   // Leaflet map 'click' handler (pin drop)
+let issueContainerTapFn = null;  // native DOM click handler (pin drop, iOS-safe)
+let issueTouchStartFn  = null;   // native touchstart (records tap origin)
+let issueTouchEndFn    = null;   // native touchend fallback (most reliable on iOS)
+let issueTouchStartPt  = null;
 let pinDropBannerEl    = null;
 let issueReportBtnEl   = null;
 // The Hide/Show-Issues toggle + pins are only set up once the owl is signed in.
@@ -684,13 +688,76 @@ window.onDetailMapLeaving = () => {
 };
 
 // ── Pin-drop mode ─────────────────────────────────────────────
+// Remove every pin-drop tap listener (Leaflet's, native click, native touch).
+function disarmIssueTap() {
+    if (issueMapRef) {
+        const c = issueMapRef.getContainer();
+        if (issueMapClickFn)     issueMapRef.off('click', issueMapClickFn);
+        if (issueContainerTapFn) L.DomEvent.off(c, 'click', issueContainerTapFn);
+        if (issueTouchStartFn)   L.DomEvent.off(c, 'touchstart', issueTouchStartFn);
+        if (issueTouchEndFn)     L.DomEvent.off(c, 'touchend', issueTouchEndFn);
+    }
+    issueMapClickFn = issueContainerTapFn = issueTouchStartFn = issueTouchEndFn = null;
+    issueTouchStartPt = null;
+}
+
+// Listen for the next tap on the map to drop the pin. We listen THREE ways and
+// dedupe, because on iOS any one of them can silently fail to fire:
+//   • Leaflet's map 'click' — clean, but iOS can swallow it when the offline
+//     lock has disabled the map's touch handlers. That's the reported
+//     "button turns red but tapping the map does nothing" bug.
+//   • native DOM 'click' on the container — Leaflet derives its click from this.
+//   • native 'touchend' — the one event that ALWAYS fires on an iOS tap, even
+//     when no 'click' is synthesized. This is the true safety net. We ignore it
+//     if the finger moved (a pan/scroll gesture rather than a tap).
+function armIssueTap(map) {
+    disarmIssueTap();
+    const container = map.getContainer();
+    let handled = false;
+    const onInteractiveTarget = (t) =>
+        t && t.closest && t.closest('.leaflet-marker-icon, .leaflet-control, .issue-report-fab, .pin-drop-banner');
+    const place = (lat, lng) => {
+        if (handled) return;
+        handled = true;
+        placePinAndOpenForm(map, lat, lng);
+    };
+
+    issueMapClickFn = (e) => place(e.latlng.lat, e.latlng.lng);
+    map.on('click', issueMapClickFn);
+
+    issueContainerTapFn = (ev) => {
+        if (onInteractiveTarget(ev.target)) return;
+        const ll = map.mouseEventToLatLng(ev);
+        place(ll.lat, ll.lng);
+    };
+    L.DomEvent.on(container, 'click', issueContainerTapFn);
+
+    issueTouchStartFn = (ev) => {
+        issueTouchStartPt = (ev.touches && ev.touches.length === 1)
+            ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY } : null;
+    };
+    issueTouchEndFn = (ev) => {
+        if (!ev.changedTouches || ev.changedTouches.length !== 1) return;
+        const t = ev.changedTouches[0];
+        if (onInteractiveTarget(t.target)) return;
+        // Ignore drags (finger moved) — only a stationary tap drops a pin.
+        if (issueTouchStartPt) {
+            const dx = Math.abs(t.clientX - issueTouchStartPt.x);
+            const dy = Math.abs(t.clientY - issueTouchStartPt.y);
+            if (dx > 14 || dy > 14) { issueTouchStartPt = null; return; }
+        }
+        issueTouchStartPt = null;
+        const ll = map.mouseEventToLatLng({ clientX: t.clientX, clientY: t.clientY });
+        place(ll.lat, ll.lng);
+    };
+    L.DomEvent.on(container, 'touchstart', issueTouchStartFn);
+    L.DomEvent.on(container, 'touchend', issueTouchEndFn);
+}
+
 function enterPinDrop(map, btn) {
     if (!currentOwl) return;
     // Defensive: clear any stale state from a previous (incomplete) attempt
-    if (issueMapClickFn && issueMapRef) {
-        issueMapRef.off('click', issueMapClickFn);
-        issueMapClickFn = null;
-    }
+    disarmIssueTap();
     if (tempIssueMarker && issueMapRef) {
         issueMapRef.removeLayer(tempIssueMarker);
         tempIssueMarker = null;
@@ -703,7 +770,7 @@ function enterPinDrop(map, btn) {
     if (pinDropBannerEl) pinDropBannerEl.classList.remove('hidden');
     map.getContainer().classList.add('pin-drop-mode');
 
-    // CRITICAL: register the map click listener on the NEXT tick, not this one.
+    // CRITICAL: register the tap listeners on the NEXT tick, not this one.
     //
     // Why: the click that just triggered this function is still propagating.
     // On touch devices (and even some desktop browsers) the same tap can also
@@ -713,9 +780,7 @@ function enterPinDrop(map, btn) {
     // wherever the button was, and the user never gets to pick a spot.
     setTimeout(() => {
         if (!issuePinMode) return; // user already cancelled
-        // Save the previously-issuing function reference so we can off it later
-        issueMapClickFn = (e) => placePinAndOpenForm(map, e.latlng.lat, e.latlng.lng);
-        map.on('click', issueMapClickFn);
+        armIssueTap(map);
     }, 100);
 }
 
@@ -727,13 +792,8 @@ function cancelPinDrop() {
         issueReportBtnEl.title = 'Report a trail issue';
     }
     if (pinDropBannerEl) pinDropBannerEl.classList.add('hidden');
-    if (issueMapRef) {
-        issueMapRef.getContainer().classList.remove('pin-drop-mode');
-        if (issueMapClickFn) {
-            issueMapRef.off('click', issueMapClickFn);
-            issueMapClickFn = null;
-        }
-    }
+    if (issueMapRef) issueMapRef.getContainer().classList.remove('pin-drop-mode');
+    disarmIssueTap();
     if (tempIssueMarker && issueMapRef) {
         issueMapRef.removeLayer(tempIssueMarker);
         tempIssueMarker = null;
@@ -745,11 +805,8 @@ function cancelPinDrop() {
 // ── Place pin → open form ─────────────────────────────────────
 function placePinAndOpenForm(map, lat, lng) {
     issuePinMode = false;
-    // Always clear the live click listener — we used .on() so .once isn't enough
-    if (issueMapClickFn && issueMapRef) {
-        issueMapRef.off('click', issueMapClickFn);
-        issueMapClickFn = null;
-    }
+    // Always clear the live tap listeners — we used .on() so .once isn't enough
+    disarmIssueTap();
     if (issueReportBtnEl) {
         issueReportBtnEl.classList.remove('pin-drop-active');
         issueReportBtnEl.innerHTML = REPORT_SVG;
@@ -1240,7 +1297,6 @@ function addQueuedIssueMarker(map, item) {
         L.DomEvent.stopPropagation(e);
         // Mid pin-drop → hand off the tap like a normal issue pin.
         if (issuePinMode) {
-            if (issueMapClickFn && issueMapRef) { issueMapRef.off('click', issueMapClickFn); issueMapClickFn = null; }
             placePinAndOpenForm(issueMapRef || map, d.lat, d.lng);
             return;
         }
@@ -1266,10 +1322,6 @@ function addIssueMarker(map, issue, issueId) {
         L.DomEvent.stopPropagation(e);
         // If user is mid pin-drop, hand off — don't silently swallow the click.
         if (issuePinMode) {
-            if (issueMapClickFn && issueMapRef) {
-                issueMapRef.off('click', issueMapClickFn);
-                issueMapClickFn = null;
-            }
             placePinAndOpenForm(issueMapRef || map, issue.lat, issue.lng);
             return;
         }
