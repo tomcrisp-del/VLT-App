@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.15";
+const APP_VERSION = "1.7.16";
 
 const properties = [
     {
@@ -683,10 +683,19 @@ function propPath(prop, file) {
 }
 
 // Small pre-generated 512×384 WebP thumbnail of the main photo, used on the
-// list-view cards (the full-res original is only needed for the detail banner,
-// online). This is what gets cached for offline use — see computeAllTrailAssetUrls.
+// list-view cards. This is what gets cached for offline use — see
+// computeAllTrailAssetUrls.
 function cardThumbPath(prop) {
     return "Properties/" + prop.folder + "/card-thumb.webp";
+}
+
+// Web-sized WebP banner (~1400px, a few hundred KB) shown on the expanded trail
+// page. The full-res photo-*.* originals are 5–33 MB each, so loading them in the
+// banner made every trail page crawl and blew up the offline bundle; this small
+// version is precached instead, making the banner instant online and offline.
+// The full-res original stays on disk as an onerror fallback (see initCarousel).
+function bannerPath(prop) {
+    return "Properties/" + prop.folder + "/banner.webp";
 }
 
 // Load and parse a KML file (accepts full relative path)
@@ -865,9 +874,35 @@ async function addAllBoundaries(targetMap) {
     return group;
 }
 
+// The parking/boat pin is a fixed 24px on screen, so at the default fit-to-trail
+// zoom it can sit squarely on top of a small trail and hide most of it. Gate the
+// whole parking layer on zoom: keep it hidden at the initial (fit) zoom and only
+// reveal it once the user zooms in past this many levels. Tunable in one place.
+const PARKING_REVEAL_ZOOM_ABOVE_FIT = 1;
+
+// Show `group` only when the map is zoomed in `PARKING_REVEAL_ZOOM_ABOVE_FIT`
+// levels beyond `baselineZoom` (the fit zoom captured right after fitBounds).
+// Re-evaluates on every zoom; the listener dies with the map when it's removed.
+function attachZoomGatedParking(map, group, baselineZoom) {
+    const threshold = baselineZoom + PARKING_REVEAL_ZOOM_ABOVE_FIT;
+    const apply = () => {
+        if (map.getZoom() >= threshold) {
+            if (!map.hasLayer(group)) group.addTo(map);
+        } else if (map.hasLayer(group)) {
+            map.removeLayer(group);
+        }
+    };
+    map.on("zoomend", apply);
+    apply();
+}
+
 // Add parking markers for a specific property
 async function addParkingForProp(targetMap, prop) {
-    const group = L.layerGroup().addTo(targetMap);
+    // Baseline = the current (fit-to-trail) zoom; addParkingForProp is called
+    // right after detailMap.fitBounds, so this captures the default view's zoom.
+    const baselineZoom = targetMap.getZoom();
+    const group = L.layerGroup();
+    attachZoomGatedParking(targetMap, group, baselineZoom);
 
     // Collect parking files — own + shared
     const parkingEntries = [];
@@ -1228,7 +1263,7 @@ let carouselDeltaX = 0;
 let carouselDragging = false;
 let carouselIsHorizontal = null; // null = undecided, true = horizontal, false = vertical
 
-function initCarousel(mainPhotoSrc, propertyFolder) {
+function initCarousel(mainPhotoSrc, propertyFolder, mainPhotoFallback) {
     const track = document.getElementById("carousel-track");
     const dotsContainer = document.getElementById("carousel-dots");
     const carousel = document.getElementById("detail-photo-carousel");
@@ -1246,25 +1281,21 @@ function initCarousel(mainPhotoSrc, propertyFolder) {
     carouselIndex = 0;
     carouselDeltaX = 0;
 
-    // Offline: the photo banner (main image + gallery) isn't guaranteed to be
-    // cached — gallery photos are intentionally left out of the offline bundle —
-    // so hide the banner entirely rather than risk broken images. The trail's
-    // photo still shows on the list card (that main image is cached).
-    if (!navigator.onLine) {
-        hideBanner(true);
-        carouselCount = 0;
-        return;
-    }
-
-    // Build image list: main photo first, then gallery photos
+    // Build image list: main banner first, then gallery photos. The main banner
+    // (banner.webp) is in the offline bundle, so it shows offline too. Gallery
+    // photos are intentionally left out of that bundle to keep the download
+    // small, so they're only added when online — offline you get the single
+    // banner rather than a row of broken images.
     const images = [];
     if (mainPhotoSrc) {
         images.push(mainPhotoSrc);
     }
-    const extras = galleryPhotos[propertyFolder];
-    if (extras) {
-        for (const photo of extras) {
-            images.push("Properties/" + propertyFolder + "/Photo Gallery/" + photo);
+    if (navigator.onLine) {
+        const extras = galleryPhotos[propertyFolder];
+        if (extras) {
+            for (const photo of extras) {
+                images.push("Properties/" + propertyFolder + "/Photo Gallery/" + photo);
+            }
         }
     }
 
@@ -1286,6 +1317,16 @@ function initCarousel(mainPhotoSrc, propertyFolder) {
         if (i === 0) {
             const filter = CARD_FILTERS[propertyFolder];
             if (filter) img.style.filter = filter;
+            // If the web-sized banner is missing, fall back to the full-res
+            // original once; if that also fails (e.g. offline with nothing
+            // cached), hide the banner instead of showing a broken image.
+            img.onerror = () => {
+                if (mainPhotoFallback && img.src.indexOf("banner.webp") !== -1) {
+                    img.src = mainPhotoFallback;
+                } else {
+                    hideBanner(true);
+                }
+            };
         }
         track.appendChild(img);
     }
@@ -1971,8 +2012,11 @@ async function showProperty(prop) {
     const org = orgInfo[owner];
 
     // ── Populate info panel ──
-    const mainPhotoSrc = prop.photo ? "Properties/" + prop.folder + "/" + prop.photo : null;
-    initCarousel(mainPhotoSrc, prop.folder);
+    // Banner uses the small web-sized WebP; the full-res original is passed as an
+    // onerror fallback for any trail that hasn't had a banner.webp generated yet.
+    const mainBannerSrc   = prop.photo ? bannerPath(prop) : null;
+    const mainBannerFallback = prop.photo ? "Properties/" + prop.folder + "/" + prop.photo : null;
+    initCarousel(mainBannerSrc, prop.folder, mainBannerFallback);
 
     document.getElementById("detail-org-logo").src = org.logo;
     const logo2El = document.getElementById("detail-org-logo-2");
@@ -2151,6 +2195,69 @@ document.getElementById("detail-back-btn").addEventListener("click", () => {
         switchView("list-view");
     }
 });
+
+// ── Pull-to-refresh on the expanded trail page ──────────────
+// Dragging down from the top of the info pane re-runs the current trail's asset
+// load (banner, description, map). With the small precached banner this refresh
+// is effectively instant — it's a manual "load it again" for the rare slow open.
+function initPullToRefresh() {
+    const pane = document.getElementById("detail-info");
+    if (!pane) return;
+
+    // Indicator slides down from the top of the pane as you pull.
+    const ind = document.createElement("div");
+    ind.id = "ptr-indicator";
+    ind.innerHTML = '<div class="ptr-spinner"></div>';
+    pane.prepend(ind);
+
+    const THRESHOLD = 70;   // px of pull needed to trigger a refresh
+    const MAX = 110;        // px cap on how far the indicator travels
+    let startY = 0, pulling = false, dist = 0;
+
+    const setPull = (d) => {
+        dist = d;
+        ind.style.height = d + "px";
+        ind.style.opacity = String(Math.min(1, d / THRESHOLD));
+        ind.classList.toggle("ptr-ready", d >= THRESHOLD);
+    };
+    const reset = () => {
+        ind.style.transition = "height .2s ease, opacity .2s ease";
+        setPull(0);
+        pulling = false;
+    };
+
+    pane.addEventListener("touchstart", (e) => {
+        // Only engage at the very top of the scroll, and not while the map is
+        // expanded (the info pane is collapsed then).
+        if (pane.scrollTop > 0 || mapExpanded) { pulling = false; return; }
+        startY = e.touches[0].clientY;
+        pulling = true;
+        ind.style.transition = "none";
+    }, { passive: true });
+
+    pane.addEventListener("touchmove", (e) => {
+        if (!pulling) return;
+        const dy = e.touches[0].clientY - startY;
+        if (dy <= 0) { setPull(0); return; }   // pulling up → let native scroll win
+        // Rubber-band the pull so it feels springy and can't run away.
+        setPull(Math.min(MAX, dy * 0.5));
+        if (dy > 4) e.preventDefault();         // suppress native bounce while pulling
+    }, { passive: false });
+
+    const end = () => {
+        if (!pulling) return;
+        const trigger = dist >= THRESHOLD;
+        reset();
+        if (trigger && currentDetailProp) {
+            ind.classList.add("ptr-spinning");
+            showProperty(currentDetailProp);    // rebuilds banner + description + map
+            setTimeout(() => ind.classList.remove("ptr-spinning"), 600);
+        }
+    };
+    pane.addEventListener("touchend", end);
+    pane.addEventListener("touchcancel", end);
+}
+initPullToRefresh();
 
 // ============================================================
 // All Trails Map
@@ -2990,9 +3097,10 @@ function computeAllTrailAssetUrls() {
     const urls = new Set(SHELL_ASSET_URLS);
     for (const prop of properties) {
         const add = (file) => { if (file) urls.add(propPath(prop, file)); };
-        // Cache the small card thumbnail, not the full-res photo — the list
-        // cards use it and the detail banner is hidden offline anyway.
-        if (prop.photo) urls.add(cardThumbPath(prop));
+        // Cache the small card thumbnail (list cards) and the web-sized banner
+        // (detail page) — NOT the 5–33 MB full-res original. Both are small WebPs,
+        // so the whole set is a few MB and every trail page is instant offline.
+        if (prop.photo) { urls.add(cardThumbPath(prop)); urls.add(bannerPath(prop)); }
         add(prop.description);
         add(prop.trail);
         (prop.connectors || []).forEach(add);
