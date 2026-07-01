@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.11";
+const APP_VERSION = "1.7.12";
 
 const properties = [
     {
@@ -2828,8 +2828,8 @@ const OFFLINE_CONTENT_TARGET_KEY = "vltMapsContentTarget";
 const OFFLINE_LAST_REPAIR_KEY = "vltMapsLastRepair";
 const REPAIR_COOLDOWN_MS = 60 * 60 * 1000; // repair at most once an hour
 // Cache names — must match the ones in sw.js.
-const TILE_CACHE_NAME = "vlt-tiles-v2";
-const CONTENT_CACHE_NAME = "vlt-content-v2";
+const TILE_CACHE_NAME = "vlt-tiles-v3";
+const CONTENT_CACHE_NAME = "vlt-content-v3";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2901,8 +2901,14 @@ async function _computeAllTrailTileUrls() {
         return { div, map: L.map(div, { zoomControl: false, attributionControl: false, maxZoom: 20 }) };
     };
     const W  = window.innerWidth || 390;
-    const Hc = Math.max(180, Math.round(((window.innerHeight || 740) - 52) / 2)); // collapsed (~50%)
-    const He = Math.max(Hc,  Math.round((window.innerHeight || 740) - 52));        // expanded (~full)
+    const IH = window.innerHeight || 740;
+    // Match the REAL detail map so the precache picks the SAME fitBounds zoom the
+    // map will actually render at. Collapsed is 40vh (see #detail-map flex:0 0
+    // 40vh); Expanded hides the bottom nav so it fills the whole viewport.
+    // (The old (IH-52)/2 guess was ~47vh, which pushed some trails a zoom level
+    // too deep — so every cached tile was a miss and the map came up blank.)
+    const Hc = Math.max(120, Math.round(IH * 0.40)); // collapsed = 40vh
+    const He = IH;                                    // expanded = full screen
     const collapsed = mk(W, Hc);
     const expanded  = mk(W, He);
     const urls = new Set();
@@ -2926,9 +2932,17 @@ async function _computeAllTrailTileUrls() {
             }
             collapsed.map.fitBounds(b, { padding: [30, 30] });
             const z = collapsed.map.getZoom();
-            // Expanded viewport bounds at the SAME zoom (the locked offline zoom).
-            expanded.map.setView(collapsed.map.getCenter(), z, { animate: false });
-            viewTileUrls(expanded.map.getBounds(), z).forEach((u) => urls.add(u));
+            const center = collapsed.map.getCenter();
+            // Cache a small zoom band around the locked zoom, using the EXPANDED
+            // (full-screen) extent so both the normal and Expanded offline views
+            // are covered. The band absorbs any residual container/viewport
+            // difference between here and the real map (e.g. the iOS toolbar
+            // shifting innerHeight) so the map can never come up blank.
+            for (let zz = z - 1; zz <= z + 1; zz++) {
+                if (zz < 1 || zz > 20) continue;
+                expanded.map.setView(center, zz, { animate: false });
+                viewTileUrls(expanded.map.getBounds(), zz).forEach((u) => urls.add(u));
+            }
         } catch (e) { /* skip a trail that won't load */ }
     }
     collapsed.map.remove(); collapsed.div.remove();
@@ -2945,8 +2959,20 @@ async function _computeAllTrailTileUrls() {
 // detail-page photo banner is hidden instead of showing broken gallery images
 // (see initCarousel). Shared-parking files belong to another property's folder
 // and are captured when that property is walked here.
+// App-shell branding shown across the UI (main header banner + the org logos on
+// every trail detail page). These load at runtime and otherwise only get cached
+// if the user happened to view the relevant page online, so include them
+// explicitly in the offline bundle.
+const SHELL_ASSET_URLS = [
+    "Logos/banner.png",       // main list-view header
+    "Logos/VLTLOGO.webp",     // Vinalhaven Land Trust
+    "Logos/MCHT_logo.webp",   // Maine Coast Heritage Trust
+    "Logos/TOV_logo.png",     // Town of Vinalhaven
+    "Logos/owls-sign.png",    // volunteer (OWLS) page
+];
+
 function computeAllTrailAssetUrls() {
-    const urls = new Set();
+    const urls = new Set(SHELL_ASSET_URLS);
     for (const prop of properties) {
         const add = (file) => { if (file) urls.add(propPath(prop, file)); };
         // Cache the small card thumbnail, not the full-res photo — the list

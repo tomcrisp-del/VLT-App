@@ -14,11 +14,13 @@ const SHELL_CACHE = 'vlt-shell-' + SW_VERSION;
 // Bump the tile-cache version to purge tiles poisoned by the pre-v2 cacher
 // (which stored opaque error/rate-limit responses as if they were real tiles).
 // The activate handler deletes any older vlt-tiles-* cache automatically.
-const TILE_CACHE  = 'vlt-tiles-v2';
-// Per-trail content (descriptions, card thumbnails, boundary/parking/trail KML)
-// so every trail page is fully usable offline, not just the map tiles.
-// v2 purges v1's full-res photos, replaced by small card thumbnails (~80 MB → ~1 MB).
-const CONTENT_CACHE = 'vlt-content-v2';
+// v3 purges tiles cached at the wrong zoom (the precache guessed the detail-map
+// height, so some trails were cached a zoom level off and came up blank).
+const TILE_CACHE  = 'vlt-tiles-v3';
+// Per-trail content (descriptions, card thumbnails, boundary/parking/trail KML,
+// plus app-shell logos) so every trail page is fully usable offline. v3 adds the
+// header/org logos that were missing offline.
+const CONTENT_CACHE = 'vlt-content-v3';
 
 // Cross-origin libraries the app needs to boot offline (stable, versioned URLs).
 const LIB_HOSTS = new Set([
