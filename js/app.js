@@ -2787,6 +2787,11 @@ const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf
 // view so the maps work offline. A super-thin top bar shows progress; the app
 // stays fully usable meanwhile.
 const PRECACHE_DONE_KEY = "vltMapsPrecached_v3";
+// How many tiles a complete download cached last time. The "Download All"
+// button is considered done (and greyed out) only while the tile cache still
+// holds at least this many tiles — so if the cache is cleared/evicted the
+// button reactivates on its own. See refreshOfflineMapsStatus.
+const OFFLINE_MAPS_TARGET_KEY = "vltMapsTileTarget";
 let mapPrecacheStarted = false;
 
 function precacheBarSet(pct) {
@@ -2961,6 +2966,8 @@ async function maybePrecacheMaps() {
         // guard so the next `online` event retries the missing tiles.
         if (res.failed === 0 && !res.quotaError) {
             localStorage.setItem(PRECACHE_DONE_KEY, "1");
+            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.ok));
+            refreshOfflineMapsStatus();
         } else {
             mapPrecacheStarted = false;
             console.warn("precache maps incomplete:", res);
@@ -2997,13 +3004,37 @@ function setOfflineMapsStatus(msg, state) {
     if (state) el.classList.add(state);
 }
 
+// Grey out + lock the button when everything is downloaded; otherwise it stays
+// an active "Download All Offline Maps" button.
+function setOfflineMapsButtonDone(done) {
+    const btn = document.getElementById("offline-maps-btn");
+    if (!btn) return;
+    btn.disabled = done;
+    btn.textContent = done ? "✓ Offline Maps Saved" : "Download All Offline Maps";
+}
+
 async function refreshOfflineMapsStatus() {
     const el = document.getElementById("offline-maps-status");
     if (!el || downloadAllRunning) return;
     try {
         const count = await getCachedTileCount();
-        if (count > 0) setOfflineMapsStatus(`${count} map tiles saved on this device.`, "ok");
-        else setOfflineMapsStatus("No maps saved yet — tap to download for offline use.", "");
+        const target = parseInt(localStorage.getItem(OFFLINE_MAPS_TARGET_KEY) || "0", 10);
+        const fullyDownloaded = target > 0 && count >= target;
+        if (fullyDownloaded) {
+            setOfflineMapsStatus(`✓ All maps saved (${count} tiles). They'll work with no signal.`, "ok");
+        } else if (count > 0) {
+            setOfflineMapsStatus(`${count} map tiles saved — tap to finish downloading the rest.`, "warn");
+        } else {
+            setOfflineMapsStatus("No maps saved yet — tap to download for offline use.", "");
+        }
+        // Cache was cleared or evicted below the last complete download → drop the
+        // stale "done" markers so both this button and the automatic precache
+        // treat the maps as needing to be re-downloaded.
+        if (!fullyDownloaded && target > 0) {
+            localStorage.removeItem(PRECACHE_DONE_KEY);
+            localStorage.removeItem(OFFLINE_MAPS_TARGET_KEY);
+        }
+        setOfflineMapsButtonDone(fullyDownloaded);
     } catch (_) { /* leave default text */ }
 }
 
@@ -3019,6 +3050,7 @@ async function downloadAllOfflineMaps() {
         return;
     }
     downloadAllRunning = true;
+    let fullyDone = false;
     if (btn) { btn.disabled = true; btn.classList.add("busy"); }
     setOfflineMapsStatus("Preparing map list…", "");
     try {
@@ -3040,14 +3072,21 @@ async function downloadAllOfflineMaps() {
             setOfflineMapsStatus(`Saved ${res.ok} of ${res.total} tiles — ${res.failed} didn't download. Tap to retry.`, "warn");
         } else {
             localStorage.setItem(PRECACHE_DONE_KEY, "1");
+            localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(res.ok));
             setOfflineMapsStatus(`✓ All maps saved (${res.ok} tiles). They'll work with no signal.`, "ok");
+            fullyDone = true;
         }
     } catch (e) {
         console.warn("download all offline maps:", e);
         setOfflineMapsStatus("Something went wrong. Please try again.", "err");
     } finally {
         downloadAllRunning = false;
-        if (btn) { btn.disabled = false; btn.classList.remove("busy"); }
+        if (btn) {
+            btn.classList.remove("busy");
+            // Keep it greyed + locked when everything downloaded; otherwise re-enable.
+            if (fullyDone) setOfflineMapsButtonDone(true);
+            else btn.disabled = false;
+        }
     }
 }
 
