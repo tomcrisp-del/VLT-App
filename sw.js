@@ -9,7 +9,7 @@
 //
 // Bump SW_VERSION to invalidate the shell cache on a future change.
 // ============================================================
-const SW_VERSION  = 'v2';
+const SW_VERSION  = 'v3';
 const SHELL_CACHE = 'vlt-shell-' + SW_VERSION;
 // Bump the tile-cache version to purge tiles poisoned by the pre-v2 cacher
 // (which stored opaque error/rate-limit responses as if they were real tiles).
@@ -45,6 +45,16 @@ const PRECACHE_LIBS = [
 function isTileUrl(url) {
     return /(^|\.)google\.com$/.test(url.hostname) && url.pathname.startsWith('/vt')
         || url.hostname === 'basemap.nationalmap.gov';
+}
+
+// Immutable same-origin content — trail photos, card thumbnails, org logos, and
+// KML overlays. These essentially never change (a new photo ships under a new
+// filename), so they're safe to serve cache-first: instant online, and no reason
+// to re-fetch bytes the phone already has. App code (HTML/JS/CSS) is deliberately
+// excluded so it stays network-first and the ?v= update flow keeps shipping fresh
+// code the instant a version bumps.
+function isStaticContent(url) {
+    return /\.(webp|jpe?g|png|gif|svg|kml)$/i.test(url.pathname);
 }
 
 self.addEventListener('install', (event) => {
@@ -95,8 +105,30 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 2) Same-origin app → network-first (keeps ?v= updates flowing); cache as
-    //    a fallback for offline.
+    // 2) Same-origin static content (photos, thumbnails, logos, KML) →
+    //    cache-first. This is the whole point of "saved for offline": once we
+    //    have the bytes, serve them instantly instead of re-downloading on every
+    //    view. On a miss we fetch + cache so the next view is instant too.
+    if (url.origin === self.location.origin && isStaticContent(url)) {
+        event.respondWith((async () => {
+            const cache = await caches.open(CONTENT_CACHE);
+            const hit = await cache.match(req);
+            if (hit) return hit;
+            try {
+                const resp = await fetch(req);
+                if (resp && resp.ok) cache.put(req, resp.clone());
+                return resp;
+            } catch {
+                // Not in the content cache — the precache may have stored it in
+                // the shell cache (or a prior SW version did). Fall back there.
+                return (await caches.match(req)) || Response.error();
+            }
+        })());
+        return;
+    }
+
+    // 3) Same-origin app code → network-first (keeps ?v= updates flowing); cache
+    //    as a fallback for offline.
     if (url.origin === self.location.origin) {
         event.respondWith((async () => {
             try {
@@ -118,7 +150,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 3) Static CDN libraries → cache-first so the app boots offline.
+    // 4) Static CDN libraries → cache-first so the app boots offline.
     if (LIB_HOSTS.has(url.hostname)) {
         event.respondWith((async () => {
             const cache = await caches.open(SHELL_CACHE);
@@ -135,7 +167,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 4) Everything else (Firestore API, Cloudinary, the identify function) →
+    // 5) Everything else (Firestore API, Cloudinary, the identify function) →
     //    straight to the network. Offline failures are handled in the app.
 });
 

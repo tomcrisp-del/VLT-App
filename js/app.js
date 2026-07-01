@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.14";
+const APP_VERSION = "1.7.15";
 
 const properties = [
     {
@@ -2826,7 +2826,12 @@ const OFFLINE_CONTENT_TARGET_KEY = "vltMapsContentTarget";
 // When we last force-repaired the caches — used to throttle the on-reconnect
 // repair so a flapping connection doesn't re-download every few seconds.
 const OFFLINE_LAST_REPAIR_KEY = "vltMapsLastRepair";
-const REPAIR_COOLDOWN_MS = 60 * 60 * 1000; // repair at most once an hour
+// A "repair" is a FORCE re-download that overwrites the entire offline bundle —
+// heavy traffic that competes with whatever the user is loading right now. It
+// only heals rare cache corruption, so run it at most once a day rather than
+// every hour. (Gap-filling of genuinely-missing assets is separate and cheap:
+// it runs whenever offlineBundleComplete() reports something absent.)
+const REPAIR_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 // The APP_VERSION that last completed an offline download. If it differs from
 // the running APP_VERSION when a background download runs, the download was
 // triggered by an app update, so we tell the user their maps are refreshing.
@@ -3165,7 +3170,17 @@ async function syncOfflineCaches() {
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("sw.js")
-            .then(() => { setTimeout(syncOfflineCaches, 3000); }) // let the app settle first
+            // Defer the offline sync to browser idle time so a background
+            // re-download never competes with the photos/tiles the user is
+            // loading right now. requestIdleCallback waits for a genuine lull;
+            // the setTimeout is the fallback for browsers without it (iOS Safari).
+            .then(() => {
+                if ("requestIdleCallback" in window) {
+                    requestIdleCallback(() => syncOfflineCaches(), { timeout: 8000 });
+                } else {
+                    setTimeout(syncOfflineCaches, 5000);
+                }
+            })
             .catch((e) => console.warn("SW register failed:", e));
     });
     // Repair/refresh whenever the phone regains a connection.
