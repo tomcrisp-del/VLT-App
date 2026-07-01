@@ -107,7 +107,9 @@ self.addEventListener('fetch', (event) => {
             } catch {
                 const cached = await caches.match(req);
                 if (cached) return cached;
-                if (req.mode === 'navigate') return caches.match('/') || caches.match('/index.html');
+                if (req.mode === 'navigate') {
+                    return (await caches.match('/')) || (await caches.match('/index.html')) || Response.error();
+                }
                 return Response.error();
             }
         })());
@@ -139,9 +141,8 @@ self.addEventListener('fetch', (event) => {
 // The page hands us a list of URLs (map tiles, or per-trail content) plus which
 // cache to store them in; we fetch + cache them with retries and report accurate
 // success/failure counts so the page only marks the download "complete" when
-// nothing failed. Also answers TILE_STATUS (how many entries are cached) and
-// CLEAR_TILES (wipe a cache). data.cacheName selects the target cache and
-// defaults to the tile cache for backward compatibility.
+// nothing failed. Also answers TILE_STATUS (how many entries are cached).
+// data.cacheName selects the target cache and defaults to the tile cache.
 self.addEventListener('message', (event) => {
     const data = event.data || {};
     const jobId = data.jobId;
@@ -154,15 +155,6 @@ self.addEventListener('message', (event) => {
             let count = 0;
             try { const c = await caches.open(cacheName); count = (await c.keys()).length; } catch (_) {}
             reply({ type: 'TILE_STATUS_RESULT', count });
-        })());
-        return;
-    }
-
-    // Wipe every entry in the selected cache.
-    if (data.type === 'CLEAR_TILES') {
-        event.waitUntil((async () => {
-            try { await caches.delete(cacheName); } catch (_) {}
-            reply({ type: 'CLEAR_TILES_DONE' });
         })());
         return;
     }

@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.10";
+const APP_VERSION = "1.7.11";
 
 const properties = [
     {
@@ -3079,7 +3079,9 @@ function onCellularConnection() {
 // an error). Guarded so overlapping triggers don't run it twice at once.
 async function maybePrecacheMaps(opts = {}) {
     const force = !!opts.force;
-    if (mapPrecacheStarted) return;
+    // Concurrency guard only — don't overlap with another run or the manual
+    // button. It is reset in `finally` so a later reconnect can repair again.
+    if (mapPrecacheStarted || downloadAllRunning) return;
     if (!("serviceWorker" in navigator) || !navigator.onLine) return;
     if (typeof L === "undefined" || typeof properties === "undefined") return;
     try { await navigator.serviceWorker.ready; } catch (_) { return; }
@@ -3094,14 +3096,14 @@ async function maybePrecacheMaps(opts = {}) {
         if (persistBundleResult(res)) {
             if (force) localStorage.setItem(OFFLINE_LAST_REPAIR_KEY, String(Date.now()));
         } else {
-            // Something failed (flaky connection / storage full) → leave the flag
-            // unset and reset the guard so the next reconnect retries.
-            mapPrecacheStarted = false;
+            // Something failed (flaky connection / storage full) → leave the
+            // "done" markers unset so the next reconnect retries.
             console.warn("offline precache incomplete:", res);
         }
     } catch (e) {
         console.warn("precache maps:", e);
         precacheBarHide();
+    } finally {
         mapPrecacheStarted = false;
     }
 }
@@ -3242,10 +3244,11 @@ async function downloadAllOfflineMaps() {
 })();
 
 // ── Offline map lock ─────────────────────────────────────────
-// Offline we only have each trail's default cached view, so disable zoom, pan,
-// and Expand (which would request uncached tiles). The Satellite/Topographic
-// toggle keeps working — both layers are cached. The Online/Offline pill (see
-// makeStatusControl) shows the connection state.
+// Offline we only have each trail's default cached view, so disable zoom and
+// pan (which would request uncached tiles). Expand still works — we cache the
+// expanded viewport extent too — and the Satellite/Topographic toggle works
+// (both layers are cached). The Online/Offline pill (see makeStatusControl)
+// shows the connection state.
 function setDetailMapOffline(map, offline) {
     if (!map) return;
     ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
