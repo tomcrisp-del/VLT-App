@@ -629,7 +629,11 @@ function setupTrailIssueInfra(map, prop) {
     // Floating banner appended directly inside the Leaflet container
     const banner = document.createElement('div');
     banner.className   = 'pin-drop-banner hidden';
-    banner.textContent = 'Tap map to drop issue pin';
+    // Two-line prompt: some users didn't realise they had to tap the map, so the
+    // instruction is spelled out prominently with the required action underneath.
+    banner.innerHTML =
+        '<span class="pin-drop-banner-title">Select the Location of the Issue on the Trail</span>' +
+        '<span class="pin-drop-banner-sub">👆 Tap the spot on the map</span>';
     map.getContainer().appendChild(banner);
     pinDropBannerEl = banner;
 
@@ -767,6 +771,12 @@ function enterPinDrop(map, btn) {
     btn.classList.add('pin-drop-active');
     btn.innerHTML = CANCEL_SVG;
     btn.title = 'Cancel pin drop';
+    // The prompt lives on the full-screen map, and a bigger map is easier to
+    // tap accurately — so expand the map if it isn't already.
+    if (typeof mapExpanded !== 'undefined' && !mapExpanded &&
+        typeof toggleMapExpand === 'function') {
+        toggleMapExpand();
+    }
     if (pinDropBannerEl) pinDropBannerEl.classList.remove('hidden');
     map.getContainer().classList.add('pin-drop-mode');
 
