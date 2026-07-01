@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.17";
+const APP_VERSION = "1.8.7";
 
 const properties = [
     {
@@ -879,14 +879,17 @@ async function addAllBoundaries(targetMap) {
 // whole parking layer on zoom: keep it hidden at the initial (fit) zoom and only
 // reveal it once the user zooms in past this many levels. Tunable in one place.
 const PARKING_REVEAL_ZOOM_ABOVE_FIT = 1;
+// All-Trails map: parking pins clutter the island-wide view, so keep them hidden
+// until the user has zoomed in far enough that only a handful of trails are on
+// screen. Absolute zoom (not fit-relative) since the all-map always opens at the
+// same whole-island extent. Tunable in one place.
+const ALL_MAP_PARKING_MIN_ZOOM = 14;
 
-// Show `group` only when the map is zoomed in `PARKING_REVEAL_ZOOM_ABOVE_FIT`
-// levels beyond `baselineZoom` (the fit zoom captured right after fitBounds).
+// Show `group` only when the map is zoomed to `thresholdZoom` or deeper.
 // Re-evaluates on every zoom; the listener dies with the map when it's removed.
-function attachZoomGatedParking(map, group, baselineZoom) {
-    const threshold = baselineZoom + PARKING_REVEAL_ZOOM_ABOVE_FIT;
+function attachZoomGatedParking(map, group, thresholdZoom) {
     const apply = () => {
-        if (map.getZoom() >= threshold) {
+        if (map.getZoom() >= thresholdZoom) {
             if (!map.hasLayer(group)) group.addTo(map);
         } else if (map.hasLayer(group)) {
             map.removeLayer(group);
@@ -902,7 +905,7 @@ async function addParkingForProp(targetMap, prop) {
     // right after detailMap.fitBounds, so this captures the default view's zoom.
     const baselineZoom = targetMap.getZoom();
     const group = L.layerGroup();
-    attachZoomGatedParking(targetMap, group, baselineZoom);
+    attachZoomGatedParking(targetMap, group, baselineZoom + PARKING_REVEAL_ZOOM_ABOVE_FIT);
 
     // Collect parking files — own + shared
     const parkingEntries = [];
@@ -945,7 +948,10 @@ async function addParkingForProp(targetMap, prop) {
 
 // Add all parking to a map
 async function addAllParking(targetMap) {
-    const group = L.layerGroup().addTo(targetMap);
+    // Zoom-gated: hidden at the island-wide default view, revealed only once the
+    // user zooms in to where a few trails fill the screen (see the gate helper).
+    const group = L.layerGroup();
+    attachZoomGatedParking(targetMap, group, ALL_MAP_PARKING_MIN_ZOOM);
     for (const prop of properties) {
         if (prop.parking.length === 0) continue;
         const icon =
@@ -3275,8 +3281,26 @@ async function syncOfflineCaches() {
     await maybePrecacheMaps({ force: repairDue });
 }
 
+// Ask the browser to KEEP our caches instead of evicting them. This is the real
+// fix for "images/maps used to load instantly, now they're slow": iOS evicts
+// non-persistent Cache Storage under storage pressure — and the offline map tiles
+// make our footprint large — so the cache kept going cold and every image/tile
+// reloaded from the network. Persistence is granted automatically for installed
+// (home-screen) PWAs, which is how nearly everyone runs this app.
+async function requestPersistentStorage() {
+    try {
+        if (!navigator.storage || !navigator.storage.persist) return;
+        if (await navigator.storage.persisted()) return;   // already persistent
+        const granted = await navigator.storage.persist();
+        console.log("persistent storage:", granted ? "granted ✓" : "denied");
+    } catch (e) {
+        console.warn("persist() request failed:", e);
+    }
+}
+
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
+        requestPersistentStorage();
         navigator.serviceWorker.register("sw.js")
             // Defer the offline sync to browser idle time so a background
             // re-download never competes with the photos/tiles the user is

@@ -2876,7 +2876,7 @@ header {
 }
 .pin-drop-banner {
     position: absolute;
-    top: 10px;
+    top: 62px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
@@ -2908,10 +2908,11 @@ header {
     font-weight: 600;
     opacity: 0.95;
 }
-/* Gentle pulse to pull the eye to the instruction (keeps the -50% centering). */
+/* Pronounced "breathing" pulse to pull the eye to the instruction (keeps the
+   -50% centering). Amplitude is ~3x the earlier subtle version. */
 @keyframes pinDropPulse {
     0%, 100% { transform: translateX(-50%) scale(1);    }
-    50%      { transform: translateX(-50%) scale(1.03); }
+    50%      { transform: translateX(-50%) scale(1.09); }
 }
 .pin-drop-banner.hidden {
     display: none;
