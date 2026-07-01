@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.7.12";
+const APP_VERSION = "1.7.13";
 
 const properties = [
     {
@@ -2827,10 +2827,20 @@ const OFFLINE_CONTENT_TARGET_KEY = "vltMapsContentTarget";
 // repair so a flapping connection doesn't re-download every few seconds.
 const OFFLINE_LAST_REPAIR_KEY = "vltMapsLastRepair";
 const REPAIR_COOLDOWN_MS = 60 * 60 * 1000; // repair at most once an hour
+// The APP_VERSION that last completed an offline download. If it differs from
+// the running APP_VERSION when a background download runs, the download was
+// triggered by an app update, so we tell the user their maps are refreshing.
+const OFFLINE_APP_VERSION_KEY = "vltMapsAppVersion";
 // Cache names — must match the ones in sw.js.
 const TILE_CACHE_NAME = "vlt-tiles-v3";
 const CONTENT_CACHE_NAME = "vlt-content-v3";
 let mapPrecacheStarted = false;
+
+// Small toast helper — defers to owls.js's showIssueToast (loaded after this
+// file, but available by the time any download runs).
+function showOfflineToast(msg) {
+    if (typeof window.showIssueToast === "function") window.showIssueToast(msg);
+}
 
 function precacheBarSet(pct) {
     const bar = document.getElementById("map-precache-bar");
@@ -3114,13 +3124,20 @@ async function maybePrecacheMaps(opts = {}) {
     // Nothing to do only when NOT forcing and everything is already present.
     if (!force && await offlineBundleComplete()) return;
     mapPrecacheStarted = true;
+    // If a previous version had downloaded and the running version is newer, this
+    // download is refreshing the offline data for an app update — let the user know.
+    const prevVersion = localStorage.getItem(OFFLINE_APP_VERSION_KEY);
+    const isUpdateRefresh = !!prevVersion && prevVersion !== APP_VERSION;
+    if (isUpdateRefresh) showOfflineToast("An update is refreshing your offline maps…");
     try {
         precacheBarSet(2);
         const res = await downloadOfflineBundle({ force, onBar: precacheBarSet });
         precacheBarSet(100);
         setTimeout(precacheBarHide, 700);
         if (persistBundleResult(res)) {
+            localStorage.setItem(OFFLINE_APP_VERSION_KEY, APP_VERSION);
             if (force) localStorage.setItem(OFFLINE_LAST_REPAIR_KEY, String(Date.now()));
+            if (isUpdateRefresh) showOfflineToast("Offline maps updated ✓");
         } else {
             // Something failed (flaky connection / storage full) → leave the
             // "done" markers unset so the next reconnect retries.
@@ -3241,6 +3258,7 @@ async function downloadAllOfflineMaps() {
             localStorage.setItem(OFFLINE_MAPS_TARGET_KEY, String(tiles.ok));
             localStorage.setItem(OFFLINE_CONTENT_TARGET_KEY, String(content.ok));
             localStorage.setItem(OFFLINE_LAST_REPAIR_KEY, String(Date.now())); // manual download counts as a repair
+            localStorage.setItem(OFFLINE_APP_VERSION_KEY, APP_VERSION);
             setOfflineMapsStatus(`✓ Maps & trail info saved (${tiles.ok + content.ok} items). Everything works with no signal.`, "ok");
             fullyDone = true;
         }

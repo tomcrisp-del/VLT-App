@@ -71,38 +71,58 @@ async function upsertRoster(user, displayName) {
 
 // ── Auth State ──────────────────────────────────────────────
 auth.onAuthStateChanged(async (user) => {
-    if (user) {
+    if (!user) {
+        currentOwl = null;
+        updateOwlsView(false);
+        return;
+    }
+
+    // Set a usable profile IMMEDIATELY from the auth session. This must NOT block
+    // on a Firestore read: on a weak/absent trail connection that read can hang
+    // for a long time, and while currentOwl is null the Report button treats the
+    // user as logged-out and bounces them to the login page — the "can't get past
+    // Report" bug that only shows up on poor signal. The minimal profile is
+    // enough to report (offline reports queue as pending_approval anyway).
+    if (!currentOwl || currentOwl.uid !== user.uid) {
+        currentOwl = {
+            uid: user.uid,
+            email: user.email,
+            displayName: (user.email || 'owl').split('@')[0],
+            isAdmin: false,
+        };
+    }
+    updateOwlsView(true);
+    // If a trail map opened before auth resolved, finish its issue setup now
+    // (this is what fixes the intermittently-missing Hide/Show Issues toggle).
+    if (issueMapRef && _issueInfraProp && !_issueInfraReady) {
+        setupTrailIssueInfra(issueMapRef, _issueInfraProp);
+    }
+    // Flush any reports queued while offline.
+    setTimeout(syncOfflineReports, 2500);
+
+    // Enrich with the stored profile (real display name + admin flag) in the
+    // background — timeout-guarded so it can never hang. On failure we keep the
+    // minimal profile above, so reporting still works.
+    try {
         const ref  = db.collection('users').doc(user.uid);
-        try {
-            const snap = await ref.get();
-            if (snap.exists) {
-                currentOwl = { uid: user.uid, ...snap.data() };
-            } else {
-                const profile = {
-                    email:       user.email,
-                    displayName: user.email.split('@')[0],
-                    isAdmin:     false,
-                    joinedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-                };
-                await ref.set(profile);
-                currentOwl = { uid: user.uid, ...profile };
-            }
-        } catch (e) {
-            currentOwl = { uid: user.uid, email: user.email, displayName: user.email.split('@')[0], isAdmin: false };
+        const snap = await withTimeout(ref.get(), 8000);
+        if (snap.exists) {
+            currentOwl = { uid: user.uid, ...snap.data() };
+        } else {
+            const profile = {
+                email:       user.email,
+                displayName: (user.email || 'owl').split('@')[0],
+                isAdmin:     false,
+                joinedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+            };
+            await withTimeout(ref.set(profile), 8000);
+            currentOwl = { uid: user.uid, ...profile };
         }
         // Keep the public login roster in sync with this user's current name.
         upsertRoster(user, currentOwl.displayName);
-        updateOwlsView(true);
-        // If a trail map opened before auth resolved, finish its issue setup now
-        // (this is what fixes the intermittently-missing Hide/Show Issues toggle).
-        if (issueMapRef && _issueInfraProp && !_issueInfraReady) {
-            setupTrailIssueInfra(issueMapRef, _issueInfraProp);
-        }
-        // Flush any reports queued while offline.
-        setTimeout(syncOfflineReports, 2500);
-    } else {
-        currentOwl = null;
-        updateOwlsView(false);
+        updateOwlsView(true); // refresh with real admin status / name
+    } catch (e) {
+        console.warn('owl profile load failed; using minimal profile:', e && e.message);
     }
 });
 
