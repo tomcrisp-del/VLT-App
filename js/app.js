@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.8.7";
+const APP_VERSION = "1.8.8";
 
 const properties = [
     {
@@ -3270,15 +3270,21 @@ async function maybePrecacheMaps(opts = {}) {
     }
 }
 
-// Decide what to do when the app opens or comes back online: if a repair is due
-// (we're on a non-metered connection and it's been over an hour), force a full
-// re-download to heal any corrupted caches; otherwise just fill any gaps. This
-// is what keeps caches self-repairing whenever a phone reconnects to Wi-Fi.
+// Runs on launch and on reconnect. IMPORTANT: this no longer downloads anything.
+//
+// Through v1.8.7 it kicked off an automatic offline-bundle re-download whenever
+// the cache looked incomplete (behavior added in v1.7.7). That was the root cause
+// of "images used to load instantly, now they're slow": on iOS the tile cache is
+// routinely evicted, so "incomplete → re-download the whole bundle" fired on
+// essentially every launch, and its concurrent background downloads starved the
+// images the user was actively viewing. Offline maps/trail-info now refresh ONLY
+// when the user taps "Download All Offline Maps". Here we just update that
+// button's saved/partial label — we never auto-download. Cached images still
+// serve instantly (cache-first SW); a cache miss is now a single quick fetch
+// instead of queuing behind a 1000-tile re-download.
 async function syncOfflineCaches() {
-    if (!("serviceWorker" in navigator) || !navigator.onLine) return;
-    const last = parseInt(localStorage.getItem(OFFLINE_LAST_REPAIR_KEY) || "0", 10);
-    const repairDue = !onCellularConnection() && (Date.now() - last >= REPAIR_COOLDOWN_MS);
-    await maybePrecacheMaps({ force: repairDue });
+    if (!("serviceWorker" in navigator)) return;
+    try { await refreshOfflineMapsStatus(); } catch (_) {}
 }
 
 // Ask the browser to KEEP our caches instead of evicting them. This is the real
@@ -3302,10 +3308,8 @@ if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         requestPersistentStorage();
         navigator.serviceWorker.register("sw.js")
-            // Defer the offline sync to browser idle time so a background
-            // re-download never competes with the photos/tiles the user is
-            // loading right now. requestIdleCallback waits for a genuine lull;
-            // the setTimeout is the fallback for browsers without it (iOS Safari).
+            // Defer the (now download-free) offline-status refresh to idle time so
+            // it never competes with the photos/tiles loading right now.
             .then(() => {
                 if ("requestIdleCallback" in window) {
                     requestIdleCallback(() => syncOfflineCaches(), { timeout: 8000 });
