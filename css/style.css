@@ -2874,6 +2874,48 @@ header {
 .leaflet-container.pin-drop-mode .leaflet-interactive {
     cursor: crosshair !important;
 }
+
+/* Fixed crosshair at the map center — you pan the map under it to aim. */
+.pin-drop-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 999;
+    pointer-events: none;   /* never intercept the pan/zoom gestures */
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.95))
+            drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+.pin-drop-crosshair.hidden { display: none; }
+
+/* "Set Location Here" — primary confirm, sits above the Cancel FAB. */
+.pin-drop-confirm {
+    position: absolute;
+    bottom: 86px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 20px;
+    min-height: 44px;
+    border-radius: 22px;
+    background: #3d8b6f;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    box-shadow:
+        0 6px 16px rgba(44, 95, 45, 0.42),
+        0 2px 5px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    -webkit-tap-highlight-color: transparent;
+}
+.pin-drop-confirm:active { transform: translateX(-50%) scale(0.96); }
+.pin-drop-confirm.hidden { display: none; }
 .pin-drop-banner {
     position: absolute;
     top: 62px;

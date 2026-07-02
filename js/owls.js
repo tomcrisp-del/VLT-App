@@ -545,6 +545,8 @@ let issueTouchStartFn  = null;   // native touchstart (records tap origin)
 let issueTouchEndFn    = null;   // native touchend fallback (most reliable on iOS)
 let issueTouchStartPt  = null;
 let pinDropBannerEl    = null;
+let pinDropCrosshairEl = null;   // fixed center crosshair you pan the map under
+let pinDropConfirmEl   = null;   // "Set Location Here" button
 let issueReportBtnEl   = null;
 // The Hide/Show-Issues toggle + pins are only set up once the owl is signed in.
 // If the trail map opens BEFORE Firebase auth resolves, currentOwl is still null
@@ -561,7 +563,7 @@ window.onDetailMapReady = (map, prop) => {
     // The #detail-map div is reused across trails, so any FAB/banner we
     // manually appended for a PREVIOUS trail survives map teardown. Clear
     // them first — otherwise an MCHT trail inherits the last trail's button.
-    map.getContainer().querySelectorAll('.issue-report-fab, .pin-drop-banner').forEach(el => el.remove());
+    map.getContainer().querySelectorAll('.issue-report-fab, .pin-drop-banner, .pin-drop-crosshair, .pin-drop-confirm').forEach(el => el.remove());
 
     // MCHT properties opt out of the VLT volunteer task system entirely —
     // no FAB, no pins, no anything (they're managed by Maine Coast Heritage Trust).
@@ -629,13 +631,46 @@ function setupTrailIssueInfra(map, prop) {
     // Floating banner appended directly inside the Leaflet container
     const banner = document.createElement('div');
     banner.className   = 'pin-drop-banner hidden';
-    // Two-line prompt: some users didn't realise they had to tap the map, so the
-    // instruction is spelled out prominently with the required action underneath.
+    // Crosshair flow: you drag the map so the fixed center crosshair sits over the
+    // issue, then confirm — deliberate, so you can't fat-finger the wrong spot.
     banner.innerHTML =
-        '<span class="pin-drop-banner-title">Select the Location of the Issue on the Trail</span>' +
-        '<span class="pin-drop-banner-sub">👆 Tap the spot on the map</span>';
+        '<span class="pin-drop-banner-title">Center the Crosshair on the Issue</span>' +
+        '<span class="pin-drop-banner-sub">Drag the map, then tap “Set Location Here”</span>';
     map.getContainer().appendChild(banner);
     pinDropBannerEl = banner;
+
+    // Fixed crosshair pinned to the map's center. pointer-events:none so it never
+    // blocks the pan/zoom gestures used to aim it.
+    const crosshair = document.createElement('div');
+    crosshair.className = 'pin-drop-crosshair hidden';
+    crosshair.innerHTML =
+        '<svg width="62" height="62" viewBox="0 0 62 62" fill="none" aria-hidden="true">' +
+        '<line x1="31" y1="4"  x2="31" y2="23" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>' +
+        '<line x1="31" y1="39" x2="31" y2="58" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>' +
+        '<line x1="4"  y1="31" x2="23" y2="31" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>' +
+        '<line x1="39" y1="31" x2="58" y2="31" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>' +
+        '<circle cx="31" cy="31" r="11" stroke="#dc2626" stroke-width="3"/>' +
+        '<circle cx="31" cy="31" r="2.5" fill="#dc2626"/>' +
+        '</svg>';
+    map.getContainer().appendChild(crosshair);
+    pinDropCrosshairEl = crosshair;
+
+    // "Set Location Here" — commits the map's current center as the issue location.
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'pin-drop-confirm hidden';
+    confirm.innerHTML =
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' +
+        '<span class="issue-report-label">Set Location Here</span>';
+    L.DomEvent.disableClickPropagation(confirm);
+    confirm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!issuePinMode) return;
+        const c = map.getCenter();
+        placePinAndOpenForm(map, c.lat, c.lng);
+    });
+    map.getContainer().appendChild(confirm);
+    pinDropConfirmEl = confirm;
 
     // LayerGroup for issue pins — makes bulk show/hide trivial
     maintenanceVisible = true;
@@ -678,8 +713,10 @@ window.onDetailMapLeaving = () => {
     closeIssueDetail();
     // Remove the DOM nodes, not just the references — the map container is
     // reused, so a lingering button would show up on the next trail.
-    if (issueReportBtnEl) issueReportBtnEl.remove();
-    if (pinDropBannerEl)  pinDropBannerEl.remove();
+    if (issueReportBtnEl)   issueReportBtnEl.remove();
+    if (pinDropBannerEl)    pinDropBannerEl.remove();
+    if (pinDropCrosshairEl) pinDropCrosshairEl.remove();
+    if (pinDropConfirmEl)   pinDropConfirmEl.remove();
     issueMarkers         = [];    // markers are removed with the map
     issueLayerGroup      = null;
     maintenanceVisible   = true;
@@ -687,6 +724,8 @@ window.onDetailMapLeaving = () => {
     issueMapRef          = null;
     issueReportBtnEl     = null;
     pinDropBannerEl      = null;
+    pinDropCrosshairEl   = null;
+    pinDropConfirmEl     = null;
     _issueInfraReady     = false;
     _issueInfraProp      = null;
 };
@@ -777,21 +816,12 @@ function enterPinDrop(map, btn) {
         typeof toggleMapExpand === 'function') {
         toggleMapExpand();
     }
-    if (pinDropBannerEl) pinDropBannerEl.classList.remove('hidden');
+    if (pinDropBannerEl)    pinDropBannerEl.classList.remove('hidden');
+    if (pinDropCrosshairEl) pinDropCrosshairEl.classList.remove('hidden');
+    if (pinDropConfirmEl)   pinDropConfirmEl.classList.remove('hidden');
     map.getContainer().classList.add('pin-drop-mode');
-
-    // CRITICAL: register the tap listeners on the NEXT tick, not this one.
-    //
-    // Why: the click that just triggered this function is still propagating.
-    // On touch devices (and even some desktop browsers) the same tap can also
-    // fire as a map click in the same JS tick — Leaflet's disableClickPropagation
-    // doesn't always stop the synthesized click on the way up. Without this
-    // setTimeout, the listener fires immediately, placePinAndOpenForm runs at
-    // wherever the button was, and the user never gets to pick a spot.
-    setTimeout(() => {
-        if (!issuePinMode) return; // user already cancelled
-        armIssueTap(map);
-    }, 100);
+    // No tap-to-drop: the location is chosen by panning the map under the fixed
+    // center crosshair and pressing "Set Location Here", so it can't be mis-tapped.
 }
 
 function cancelPinDrop() {
@@ -801,7 +831,9 @@ function cancelPinDrop() {
         issueReportBtnEl.innerHTML = REPORT_SVG;
         issueReportBtnEl.title = 'Report a trail issue';
     }
-    if (pinDropBannerEl) pinDropBannerEl.classList.add('hidden');
+    if (pinDropBannerEl)    pinDropBannerEl.classList.add('hidden');
+    if (pinDropCrosshairEl) pinDropCrosshairEl.classList.add('hidden');
+    if (pinDropConfirmEl)   pinDropConfirmEl.classList.add('hidden');
     if (issueMapRef) issueMapRef.getContainer().classList.remove('pin-drop-mode');
     disarmIssueTap();
     if (tempIssueMarker && issueMapRef) {
@@ -822,7 +854,9 @@ function placePinAndOpenForm(map, lat, lng) {
         issueReportBtnEl.innerHTML = REPORT_SVG;
         issueReportBtnEl.title = 'Report a trail issue';
     }
-    if (pinDropBannerEl) pinDropBannerEl.classList.add('hidden');
+    if (pinDropBannerEl)    pinDropBannerEl.classList.add('hidden');
+    if (pinDropCrosshairEl) pinDropCrosshairEl.classList.add('hidden');
+    if (pinDropConfirmEl)   pinDropConfirmEl.classList.add('hidden');
     map.getContainer().classList.remove('pin-drop-mode');
 
     pendingIssueLat = lat;
