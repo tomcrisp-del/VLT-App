@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.9.1";
+const APP_VERSION = "1.9.2";
 
 const properties = [
     {
@@ -1173,6 +1173,10 @@ if (versionEl) versionEl.textContent = "Version " + APP_VERSION;
 // Property Detail View (split: info top, map bottom)
 // ============================================================
 let detailMap = null;
+// The current trail's offline pan/zoom fence: { bounds, minZoom, maxZoom }. Set
+// after fitBounds in showProperty; used by setDetailMapOffline so the offline map
+// can pan/zoom only within the tiles we actually downloaded for this trail.
+let detailOfflineConstraints = null;
 let mapExpanded = false;
 let cameFromAllTrails = false;
 let currentDetailProp = null;
@@ -2079,6 +2083,7 @@ async function showProperty(prop) {
         detailMap.remove();
         detailMap = null;
     }
+    detailOfflineConstraints = null;   // set once we know this trail's bounds/zoom
     detailMap = L.map("detail-map", { zoomControl: false });
 
     // Two base layers the user can toggle between (matches the All Trails map).
@@ -2162,6 +2167,13 @@ async function showProperty(prop) {
         }
 
         detailMap.fitBounds(bounds, { padding: [30, 30] });
+        // Record this trail's offline pan/zoom fence — the fit zoom (matching the
+        // precache) down to fit+depth, over the trail bounds. Re-apply the offline
+        // state now that we know it, so an offline map is pannable within the
+        // cached tiles instead of frozen.
+        const fitZoom = detailMap.getZoom();
+        detailOfflineConstraints = { bounds, minZoom: fitZoom, maxZoom: fitZoom + OFFLINE_ZOOM_DEPTH };
+        setDetailMapOffline(detailMap, !navigator.onLine, detailOfflineConstraints);
     } catch (err) {
         console.error("Failed to load trail:", err);
     }
@@ -2189,6 +2201,7 @@ document.getElementById("detail-back-btn").addEventListener("click", () => {
         detailMap.remove();
         detailMap = null;
     }
+    detailOfflineConstraints = null;
     currentDetailProp = null;
 
     // Return to wherever the trail was opened from: the island map (if you
@@ -2970,8 +2983,15 @@ const REPAIR_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 // triggered by an app update, so we tell the user their maps are refreshing.
 const OFFLINE_APP_VERSION_KEY = "vltMapsAppVersion";
 // Cache names — must match the ones in sw.js.
-const TILE_CACHE_NAME = "vlt-tiles-v3";
+const TILE_CACHE_NAME = "vlt-tiles-v4";
 const CONTENT_CACHE_NAME = "vlt-content-v3";
+// Offline map coverage: cache each trail's whole bbox from its fit zoom down to
+// fit + OFFLINE_ZOOM_DEPTH, so you can pan the entire trail AND zoom in that many
+// levels offline (needed for the issue crosshair to reach any point precisely).
+// TILE_EDGE_MARGIN pads the cached tile span so the crosshair can center on the
+// trail's very edges. These also constrain the offline map (min/max zoom + pan).
+const OFFLINE_ZOOM_DEPTH = 2;
+const TILE_EDGE_MARGIN   = 2;
 let mapPrecacheStarted = false;
 
 // Small toast helper — defers to owls.js's showIssueToast (loaded after this
@@ -3002,16 +3022,16 @@ function latToTileY(lat, z) {
 // already span the whole viewport, so the edge tiles cover it — no padding ring.
 function viewTileUrls(b, zoom) {
     const out = [];
-    // Pad the bounds by ~15% so the cached tiles include a ring around the
-    // visible edge. This absorbs any rounding/orientation/size difference
-    // between download-time and view-time so the offline map never shows a
-    // blank stripe at the edge.
-    if (b && typeof b.pad === "function") b = b.pad(0.15);
+    // Expand the tile span by a fixed ring of TILE_EDGE_MARGIN tiles on every
+    // side. A fixed *tile* margin (rather than a % of the bounds) is ~half a
+    // screen at any zoom, which is exactly what lets the map center — and so the
+    // issue crosshair — sit on the trail's very edge without hitting a blank tile.
+    const mgn = TILE_EDGE_MARGIN;
     const span = (zz) => {
         const m = Math.pow(2, zz), cl = (v) => Math.max(0, Math.min(m - 1, v));
         return {
-            x0: cl(lngToTileX(b.getWest(), zz)), x1: cl(lngToTileX(b.getEast(), zz)),
-            y0: cl(latToTileY(b.getNorth(), zz)), y1: cl(latToTileY(b.getSouth(), zz)),
+            x0: cl(lngToTileX(b.getWest(), zz)  - mgn), x1: cl(lngToTileX(b.getEast(), zz)  + mgn),
+            y0: cl(latToTileY(b.getNorth(), zz) - mgn), y1: cl(latToTileY(b.getSouth(), zz) + mgn),
         };
     };
     const sat = span(zoom);
@@ -3056,9 +3076,7 @@ async function _computeAllTrailTileUrls() {
     // (The old (IH-52)/2 guess was ~47vh, which pushed some trails a zoom level
     // too deep — so every cached tile was a miss and the map came up blank.)
     const Hc = Math.max(120, Math.round(IH * 0.40)); // collapsed = 40vh
-    const He = IH;                                    // expanded = full screen
     const collapsed = mk(W, Hc);
-    const expanded  = mk(W, He);
     const urls = new Set();
     for (const prop of properties) {
         if (!prop.trail || prop.comingSoon) continue;
@@ -3080,21 +3098,19 @@ async function _computeAllTrailTileUrls() {
             }
             collapsed.map.fitBounds(b, { padding: [30, 30] });
             const z = collapsed.map.getZoom();
-            const center = collapsed.map.getCenter();
-            // Cache a small zoom band around the locked zoom, using the EXPANDED
-            // (full-screen) extent so both the normal and Expanded offline views
-            // are covered. The band absorbs any residual container/viewport
-            // difference between here and the real map (e.g. the iOS toolbar
-            // shifting innerHeight) so the map can never come up blank.
-            for (let zz = z - 1; zz <= z + 1; zz++) {
+            // Cache the WHOLE trail bounding box (viewTileUrls adds the edge
+            // margin) at every zoom from the fit zoom down to fit+depth. Caching
+            // the full bbox — not just one centered screen — is what lets the user
+            // pan across the entire trail offline; the deeper levels let them zoom
+            // in. The offline map is constrained to this exact band + bounds (see
+            // detailOfflineConstraints / setDetailMapOffline).
+            for (let zz = z; zz <= z + OFFLINE_ZOOM_DEPTH; zz++) {
                 if (zz < 1 || zz > 20) continue;
-                expanded.map.setView(center, zz, { animate: false });
-                viewTileUrls(expanded.map.getBounds(), zz).forEach((u) => urls.add(u));
+                viewTileUrls(b, zz).forEach((u) => urls.add(u));
             }
         } catch (e) { /* skip a trail that won't load */ }
     }
     collapsed.map.remove(); collapsed.div.remove();
-    expanded.map.remove();  expanded.div.remove();
     return Array.from(urls);
 }
 
@@ -3464,15 +3480,35 @@ async function downloadAllOfflineMaps() {
 // expanded viewport extent too — and the Satellite/Topographic toggle works
 // (both layers are cached). The Online/Offline pill (see makeStatusControl)
 // shows the connection state.
-function setDetailMapOffline(map, offline) {
+function setDetailMapOffline(map, offline, constraints) {
     if (!map) return;
-    ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
-        .forEach((h) => { if (map[h]) offline ? map[h].disable() : map[h].enable(); });
+    const interactions = ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"];
+    if (offline && constraints) {
+        // Offline WITH a cached pannable area (the trail detail map): keep the map
+        // interactive, but fence it to what we downloaded — the fit..fit+depth zoom
+        // band and the trail bounds — so panning/zooming can't wander onto blank
+        // (uncached) tiles. This is what lets the crosshair reach the whole trail.
+        interactions.forEach((h) => { if (map[h]) map[h].enable(); });
+        map.setMinZoom(constraints.minZoom);
+        map.setMaxZoom(constraints.maxZoom);
+        map.options.maxBoundsViscosity = 1.0;   // firm fence, no fling onto blanks
+        map.setMaxBounds(constraints.bounds.pad(0.15));
+    } else if (offline) {
+        // Offline with no cached pan area (e.g. the all-trails island map): lock it
+        // to the single downloaded view.
+        interactions.forEach((h) => { if (map[h]) map[h].disable(); });
+    } else {
+        // Online: full freedom.
+        interactions.forEach((h) => { if (map[h]) map[h].enable(); });
+        map.setMinZoom(1);
+        map.setMaxZoom(20);
+        map.setMaxBounds(null);
+    }
     map.getContainer().classList.toggle("map-offline", offline);
 }
 
-window.addEventListener("offline", () => { setDetailMapOffline(detailMap, true);  if (allMap) setDetailMapOffline(allMap, true); });
-window.addEventListener("online",  () => { setDetailMapOffline(detailMap, false); if (allMap) setDetailMapOffline(allMap, false); });
+window.addEventListener("offline", () => { setDetailMapOffline(detailMap, true, detailOfflineConstraints);  if (allMap) setDetailMapOffline(allMap, true); });
+window.addEventListener("online",  () => { setDetailMapOffline(detailMap, false, detailOfflineConstraints); if (allMap) setDetailMapOffline(allMap, false); });
 
 // ── Sat / Topo layer toggle ──────────────────────────────────
 // Compact two-segment toggle replacing Leaflet's radio layer control. Active

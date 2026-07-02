@@ -16,7 +16,11 @@ const SHELL_CACHE = 'vlt-shell-' + SW_VERSION;
 // The activate handler deletes any older vlt-tiles-* cache automatically.
 // v3 purges tiles cached at the wrong zoom (the precache guessed the detail-map
 // height, so some trails were cached a zoom level off and came up blank).
-const TILE_CACHE  = 'vlt-tiles-v3';
+// v4 re-scopes the download: instead of just the fit view, cache each trail's
+// whole bounding box (plus an edge margin) across fit..fit+2 zoom, so offline you
+// can pan the entire trail and zoom in — required for the issue crosshair to
+// reach every point. Bumping this purges the old (fit-view-only) tiles.
+const TILE_CACHE  = 'vlt-tiles-v4';
 // Per-trail content (descriptions, card thumbnails, boundary/parking/trail KML,
 // plus app-shell logos) so every trail page is fully usable offline. v3 adds the
 // header/org logos that were missing offline.
