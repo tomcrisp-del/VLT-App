@@ -8,7 +8,7 @@
 // bottom of the Resources page so you can confirm the phone loaded the
 // latest code (also keep the ?v= query on the script tags in index.html
 // in sync to defeat browser caching).
-const APP_VERSION = "1.8.8";
+const APP_VERSION = "1.8.9";
 
 const properties = [
     {
@@ -2270,6 +2270,14 @@ initPullToRefresh();
 // ============================================================
 const trailColor = "#ff4444";
 
+// Trail line weight scales with zoom on the All-Trails map — thin at the island-
+// wide view (which was a mess of thick red lines) and thickening as you zoom into
+// a trail, the way Google/Apple Maps render roads. ~1.5px zoomed out up to ~5px
+// zoomed in.
+function allTrailWeightForZoom(z) {
+    return Math.max(1.5, Math.min(5, (z - 12) * 0.75 + 1.5));
+}
+
 function initAllMap() {
     if (allMap) return;
     allMap = L.map("all-map", { zoomControl: false });
@@ -2339,12 +2347,13 @@ async function showAllTrails() {
     await addAllBoundaries(allMap);
 
     // 2. Load all trails on top of boundaries
+    const trailPaths = [];   // every trail + connector path, for zoom-based weight
     for (const prop of properties) {
         if (!prop.trail) continue;
         try {
             const geoJson = await loadKml(propPath(prop, prop.trail));
             const layer = L.geoJSON(geoJson, {
-                style: { color: trailColor, weight: 4, opacity: 0.95 },
+                style: { color: trailColor, weight: allTrailWeightForZoom(allMap.getZoom()), opacity: 0.95 },
                 filter: (f) => f.geometry.type !== "Point",
                 onEachFeature: function (feature, lyr) {
                     lyr.bindTooltip(prop.name.replace(/\n/g, " "), {
@@ -2356,6 +2365,7 @@ async function showAllTrails() {
                     });
                 },
             }).addTo(allMap);
+            trailPaths.push(layer);
 
             allBounds.extend(layer.getBounds());
 
@@ -2364,7 +2374,7 @@ async function showAllTrails() {
                 try {
                     const connGeoJson = await loadKml(propPath(prop, conn));
                     const connLayer = L.geoJSON(connGeoJson, {
-                        style: { color: trailColor, weight: 4, opacity: 0.95 },
+                        style: { color: trailColor, weight: allTrailWeightForZoom(allMap.getZoom()), opacity: 0.95 },
                         filter: (f) => f.geometry.type !== "Point",
                         onEachFeature: function (feature, lyr) {
                             lyr.on("click", function () {
@@ -2372,6 +2382,7 @@ async function showAllTrails() {
                             });
                         },
                     }).addTo(allMap);
+                    trailPaths.push(connLayer);
                     allBounds.extend(connLayer.getBounds());
                 } catch (err) {
                     console.error("Failed to load connector:", conn, err);
@@ -2382,10 +2393,19 @@ async function showAllTrails() {
         }
     }
 
+    // Re-weight every trail line on zoom so they're thin when zoomed out and
+    // thicken as you zoom in (see allTrailWeightForZoom).
+    const applyTrailWeights = () => {
+        const w = allTrailWeightForZoom(allMap.getZoom());
+        trailPaths.forEach((p) => p.setStyle({ weight: w }));
+    };
+    allMap.on("zoomend", applyTrailWeights);
+
     // 3. Load parking on top of everything
     await addAllParking(allMap);
 
     allMap.fitBounds(allBounds, { padding: [30, 30] });
+    applyTrailWeights();
     allTrailsLoaded = true;
     startLocationTracking(allMap);
 }
